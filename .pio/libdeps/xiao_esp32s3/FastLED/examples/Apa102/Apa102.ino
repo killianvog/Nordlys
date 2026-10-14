@@ -1,27 +1,12 @@
-// @filter: (board is not stm32f103cb)
 
 #include <Arduino.h>
 #include <FastLED.h>
 #include <lib8tion.h>
 
-#if FL_PLATFORM_HAS_TINY_MEMORY
-// Leave room for the controller and stack on parts with as little as 256 B SRAM.
-#define NUM_LEDS 8
-#else
-#define NUM_LEDS 20
-#endif
+#define NUM_LEDS  20
 
-// Defaults come from the board (platforms/default_pins.h) rather than a
-// literal, because a literal is a guess about hardware this sketch cannot
-// see -- Adafruit Feather M4 has no pin 2 at all. A sketch or build flag
-// defining these first still wins.
-#ifndef STRIP_DATA_PIN
-#define STRIP_DATA_PIN FL_PIN_SPI_DATA_1
-#endif
-
-#ifndef STRIP_CLOCK_PIN
-#define STRIP_CLOCK_PIN FL_PIN_SPI_CLOCK_1
-#endif
+#define STRIP_DATA_PIN 1
+#define STRIP_CLOCK_PIN 2
 
 CRGB leds[NUM_LEDS] = {0};     // Software gamma mode.
 

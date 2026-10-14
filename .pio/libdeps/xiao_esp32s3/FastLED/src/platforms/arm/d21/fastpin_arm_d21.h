@@ -1,16 +1,10 @@
-// IWYU pragma: private
-
 #ifndef __INC_FASTPIN_ARM_SAM_H
 #define __INC_FASTPIN_ARM_SAM_H
 
-#include "fl/stl/compiler_control.h"
-#include "fl/system/fastpin_base.h"
-#include "fl/system/pin.h"  // For PinMode, PinValue enums
-#include "fl/stl/noexcept.h"
+#include "fl/force_inline.h"
 
-FL_DISABLE_WARNING_PUSH
-FL_DISABLE_WARNING_DEPRECATED_REGISTER
-namespace fl {
+FASTLED_NAMESPACE_BEGIN
+
 #if defined(FASTLED_FORCE_SOFTWARE_PINS)
 #warning "Software pin support forced, pin access will be slightly slower."
 #define NO_HARDWARE_PIN_SUPPORT
@@ -23,13 +17,13 @@ namespace fl {
 /// that something about the way gcc does register allocation results in the bit-band code being slower.  It will need more fine tuning.
 /// The registers are data output, set output, clear output, toggle output, input, and direction
 
-template<u8 PIN, u8 _BIT, u32 _MASK, int _GRP> class _ARMPIN : public ValidPinBase {
+template<uint8_t PIN, uint8_t _BIT, uint32_t _MASK, int _GRP> class _ARMPIN {
 public:
-    typedef volatile u32 * port_ptr_t;
-    typedef u32 port_t;
+    typedef volatile uint32_t * port_ptr_t;
+    typedef uint32_t port_t;
 
     #if 0
-    inline static void setOutput() FL_NO_EXCEPT {
+    inline static void setOutput() {
         if(_BIT<8) {
             _CRL::r() = (_CRL::r() & (0xF << (_BIT*4)) | (0x1 << (_BIT*4));
         } else {
@@ -39,8 +33,8 @@ public:
     inline static void setInput() { /* TODO */ } // TODO: preform MUX config { _PDDR::r() &= ~_MASK; }
     #endif
 
-    inline static void setOutput() { pinMode(PIN, PinMode::Output); } // TODO: perform MUX config { _PDDR::r() |= _MASK; }
-    inline static void setInput() { pinMode(PIN, PinMode::Input); } // TODO: preform MUX config { _PDDR::r() &= ~_MASK; }
+    inline static void setOutput() { pinMode(PIN, OUTPUT); } // TODO: perform MUX config { _PDDR::r() |= _MASK; }
+    inline static void setInput() { pinMode(PIN, INPUT); } // TODO: preform MUX config { _PDDR::r() &= ~_MASK; }
 
     inline static void hi() __attribute__ ((always_inline)) { PORT_IOBUS->Group[_GRP].OUTSET.reg = _MASK; }
     inline static void lo() __attribute__ ((always_inline)) { PORT_IOBUS->Group[_GRP].OUTCLR.reg = _MASK; }
@@ -223,14 +217,10 @@ _FL_DEFPIN( 3, 7, 0); _FL_DEFPIN( 4, 6, 0); _FL_DEFPIN( 7, 0, 0); _FL_DEFPIN( 8,
 
 #elif defined(ADAFRUIT_QTPY_M0)
 
-#define MAX_PIN 11
-#ifndef FL_PIN_CLOCKLESS_1
-#define FL_PIN_CLOCKLESS_1 11
-#endif
+#define MAX_PIN 10
 _FL_DEFPIN( 0, 2, 0); _FL_DEFPIN( 1, 3, 0); _FL_DEFPIN( 2, 4, 0); _FL_DEFPIN( 3, 5, 0);
 _FL_DEFPIN( 4, 16, 0); _FL_DEFPIN( 5, 17, 0); _FL_DEFPIN( 6, 6, 0); _FL_DEFPIN( 7, 7, 0);
 _FL_DEFPIN( 8, 11, 0); _FL_DEFPIN( 9, 9, 0); _FL_DEFPIN( 10, 10, 0);
-_FL_DEFPIN(11, 18, 0); // PIN_NEOPIXEL
 
 #define SPI_DATA  10
 #define SPI_CLOCK 8
@@ -241,13 +231,6 @@ _FL_DEFPIN(11, 18, 0); // PIN_NEOPIXEL
 #elif defined(ADAFRUIT_ITSYBITSY_M0)
 
 #define MAX_PIN 16
-
-// Default example pins: this board's table starts at pin 2, so the
-// FL_PIN_SPI_DATA_1 fallback of 1 would fail FastPin<>::validpin().
-// FL_PIN_CLOCKLESS_1 (3) is present and needs no override.
-// See platforms/default_pins.h.
-#define FL_PIN_SPI_DATA_1 2
-#define FL_PIN_SPI_CLOCK_1 4
 _FL_DEFPIN( 2, 14, 0); _FL_DEFPIN( 3, 9, 0); _FL_DEFPIN( 4, 8, 0);
 _FL_DEFPIN( 5, 15, 0); _FL_DEFPIN( 6, 20, 0); _FL_DEFPIN( 7, 21, 0);
 _FL_DEFPIN( 8, 6, 0); _FL_DEFPIN( 9, 7, 0); _FL_DEFPIN( 10, 18, 0);
@@ -299,8 +282,8 @@ _FL_DEFPIN(40, 6,0); _FL_DEFPIN(41, 7,0); _FL_DEFPIN(42, 3,0);
 #endif
 
 #endif // FASTLED_FORCE_SOFTWARE_PINS
-}  // namespace fl
 
-FL_DISABLE_WARNING_POP
+FASTLED_NAMESPACE_END
+
 
 #endif // __INC_FASTPIN_ARM_SAM_H

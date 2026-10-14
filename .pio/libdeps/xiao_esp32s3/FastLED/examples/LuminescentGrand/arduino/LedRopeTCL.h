@@ -11,10 +11,11 @@
 #include "../shared/framebuffer.h"
 #include "../shared/led_rope_interface.h"
 
-#include "fl/stl/vector.h"
+#include "fl/vector.h"
 #include "crgb.h"
-#include "fl/math/screenmap.h"
+#include "fl/screenmap.h"
 
+using namespace fl;
 
 // LedRopeTCL is a C++ wrapper around the Total Control Lighting LED rope
 // device driver (TCL.h). This wrapper includes automatic setup of the LED
@@ -52,14 +53,14 @@ class LedRopeTCL : public LedRopeInterface {
   void set_draw_offset(int val);
   
   virtual void Set(int i, const Color3i& c) {
-    mFrameBuffer.Set(i, c);
+    frame_buffer_.Set(i, c);
   }
 
   Color3i* GetIterator(int i) {
-    return mFrameBuffer.GetIterator(i);
+    return frame_buffer_.GetIterator(i);
   }
 
-  int length() const { return mFrameBuffer.length(); }
+  int length() const { return frame_buffer_.length(); }
 
   void RawBeginDraw();
   void RawDrawPixel(const Color3i& c);
@@ -69,11 +70,11 @@ class LedRopeTCL : public LedRopeInterface {
 
  protected:
   void PreDrawSetup();
-  int mDrawOffset = 0;
-  bool mLazyInitialized;
-  FrameBuffer mFrameBuffer;
-  bool mControllerAdded = false;
-  fl::vector<fl::CRGB> mLedBuffer;
+  int draw_offset_ = 0;
+  bool lazy_initialized_;
+  FrameBuffer frame_buffer_;
+  bool controller_added_ = false;
+  fl::HeapVector<CRGB> led_buffer_;
   fl::ScreenMap mScreenMap;
 };
 

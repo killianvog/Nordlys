@@ -22,8 +22,8 @@ class FrameBufferBase {
   int length() const;
 
  protected:
-  Color3i* mColorArray;
-  int mNColorArray;
+  Color3i* color_array_;
+  int n_color_array_;
 };
 
 class FrameBuffer : public FrameBufferBase {

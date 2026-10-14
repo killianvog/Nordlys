@@ -6,10 +6,8 @@
 #include "./led_layout_array.h"
 #include "./dprint.h"
 #include "./Keyboard.h"
-#include "fl/math/math.h"
-#include "fl/math/math.h"
-#include "fl/log/log.h"
-#include "fl/stl/cstring.h"
+#include "fl/math_macros.h"
+#include <math.h>
 
 namespace {
 
@@ -42,33 +40,33 @@ float CalcLuminance(float time_delta_ms,
                     const Key& key,
                     int key_idx) {
                              
-  if (key.mCurrColor.v_ <= 0.0) {
+  if (key.curr_color_.v_ <= 0.0) {
     return 0.0;
   }
-
+                             
   const bool dampened_key = (key_idx < kFirstNoteNoDamp);
-
+  
   const float decay_factor = CalcDecayFactor(sustain_pedal_on,
-                                             key.mOn,
+                                             key.on_,
                                              key_idx,
-                                             key.mVelocity * (1.f/127.f),  // Normalizing
+                                             key.velocity_ * (1.f/127.f),  // Normalizing
                                              dampened_key,
                                              time_delta_ms);
-
-  if (key.mOn) {
-    //const float brigthness_factor = sin(key.mOrigColor.v_ * PI / 2.0);
+                                                 
+  if (key.on_) {
+    //const float brigthness_factor = sin(key.orig_color_.v_ * PI / 2.0);
     float brigthness_factor = 0.0f;
-
+    
     if (kUseLedCurtin) {
-      brigthness_factor = fl::sqrt(fl::sqrt(key.mOrigColor.v_));
+      brigthness_factor = sqrt(sqrt(key.orig_color_.v_));
     } else {
-      //brigthness_factor = key.mOrigColor.v_ * key.mOrigColor.v_;
-      brigthness_factor = key.mOrigColor.v_;
+      //brigthness_factor = key.orig_color_.v_ * key.orig_color_.v_;
+      brigthness_factor = key.orig_color_.v_;
     }
     return LuminanceDecay(decay_factor) * brigthness_factor;
     //return 1.0f;
   } else {
-    return decay_factor * key.mOrigColor.v_;
+    return decay_factor * key.orig_color_.v_;
   }
 }
 
@@ -87,7 +85,7 @@ float CalcSaturation(float time_delta_ms, const ColorHSV& color, bool key_on) {
                                  0.0f, 1.0f);
   // As time increases the saturation factor will continue
   // to grow past 1.0. We use min to clamp it back to 1.0.
-  saturation_factor = fl::min(1.0f, saturation_factor);
+  saturation_factor = MIN(1.0f, saturation_factor);
   // TODO - make the saturation interpolate between the original
   // color and the unsaturated state.
  return saturation_factor;
@@ -102,23 +100,23 @@ void Painter::Paint(uint32_t now_ms,
                     KeyboardState* keyboard,
                     LedRopeInterface* light_rope) {
   for (int i = 0; i < KeyboardState::kNumKeys; ++i) {
-    Key& key = keyboard->mKeys[i];
+    Key& key = keyboard->keys_[i];
     
-    const float time_delta_ms = static_cast<float>(now_ms - key.mEventTime);
+    const float time_delta_ms = static_cast<float>(now_ms - key.event_time_);
         
-    const float lum = CalcLuminance(time_delta_ms, keyboard->mSustainPedal, key, i);
-    const float sat = CalcSaturation(time_delta_ms, key.mCurrColor, key.mOn);
+    const float lum = CalcLuminance(time_delta_ms, keyboard->sustain_pedal_, key, i);
+    const float sat = CalcSaturation(time_delta_ms, key.curr_color_, key.on_);
 
-    //if (key.mIdx == 56) {
+    //if (key.idx_ == 56) {
     //  dprint("lum: "); dprint(lum*255.f); dprint(" sat:"); dprintln(sat*255.f);
     //}
     
-    key.mCurrColor.v_ = lum;
-    key.mCurrColor.s_ = sat;
+    key.curr_color_.v_ = lum;
+    key.curr_color_.s_ = sat;
 
     // Removing this line breaks one of the visualizers...
     // TODO: Figure out a cleaner solution.
-    light_rope->Set(i, key.mCurrColor.ToRGB());
+    light_rope->Set(i, key.curr_color_.ToRGB());
   }
 
   LedColumns led_columns = LedLayoutArray();
@@ -166,19 +164,16 @@ void Painter::PaintVuNotes(uint32_t /*now_ms*/,
                            const KeyboardState& keyboard,
                            const int* led_column_table, int led_column_table_length,
                            LedRopeInterface* led_rope) {
-
-
- FL_WARN("\n\n############## VU NOTES ################\n\n");
  
  led_rope->RawBeginDraw();
                      
  for (int i = 0; i < led_column_table_length; ++i) {
-    const Key& key = keyboard.mKeys[i];
+    const Key& key = keyboard.keys_[i];
     
     
     // Map the white keys to the bottom and the black keys to the top.
     bool black_key = false;
-    switch (key.mIdx % 12) {
+    switch (key.idx_ % 12) {
       case 1:
       case 4:
       case 6:
@@ -189,13 +184,13 @@ void Painter::PaintVuNotes(uint32_t /*now_ms*/,
     }
     
     const int pixel_count = led_column_table[i];
-    const int draw_pixel_count = fl::ceil(pixel_count * fl::sqrt(key.mCurrColor.v_));
+    const int draw_pixel_count = ceil(pixel_count * sqrt(key.curr_color_.v_));
     
     const int black_pixel_count = pixel_count - draw_pixel_count;
     const Color3i& c = *led_rope->GetIterator(i);
     
 
-    const bool reverse_correct = black_key == (key.mIdx % 2);
+    const bool reverse_correct = black_key == (key.idx_ % 2);
 
     if (reverse_correct) {
       for (int j = 0; j < draw_pixel_count; ++j) {
@@ -234,9 +229,6 @@ void Painter::PaintVuMidNotesFade(uint32_t /*delta_ms*/,
                                   const KeyboardState& keyboard,
                                   const int* led_column_table, int led_column_table_length,
                                   LedRopeInterface* led_rope) {
-
-  FL_WARN("\n\n############## VU MID NOTES FADE ################\n\n");
-
   struct DrawPoints {
     int n_black0;
     int n_fade0;
@@ -260,7 +252,7 @@ void Painter::PaintVuMidNotesFade(uint32_t /*delta_ms*/,
   struct F {
     static DrawPoints Generate(int n_led, float factor) {
       DrawPoints out;
-      fl::memset(&out, 0, sizeof(out));
+      memset(&out, 0, sizeof(out));
       if (n_led == 0 || factor == 0.0f) {
         out.n_black0 = n_led;
         return out;
@@ -299,11 +291,11 @@ void Painter::PaintVuMidNotesFade(uint32_t /*delta_ms*/,
  led_rope->RawBeginDraw();
                            
  for (int i = 0; i < led_column_table_length; ++i) {
-    const Key& key = keyboard.mKeys[i];
+    const Key& key = keyboard.keys_[i];
 
     float active_lights_factor = key.IntensityFactor();
 
-    //if (key.mCurrColor.v_ <= 0.f) {
+    //if (key.curr_color_.v_ <= 0.f) {
     //  active_lights_factor = 0.0;
     //}
 
@@ -312,12 +304,12 @@ void Painter::PaintVuMidNotesFade(uint32_t /*delta_ms*/,
     if (active_lights_factor > 0.0f) {
       DrawPoints dp = F::Generate(n_led, active_lights_factor);
       
-      ColorHSV hsv = key.mCurrColor;
+      ColorHSV hsv = key.curr_color_;
       hsv.v_ = 1.0;
       Color3i color = hsv.ToRGB();
       // Now figure out optional fade color
       Color3i fade_col;
-      ColorHSV c = key.mCurrColor;
+      ColorHSV c = key.curr_color_;
       c.v_ = dp.fade_factor;
       fade_col = c.ToRGB();
       
@@ -366,19 +358,19 @@ void Painter::VegasVisualizer(const KeyboardState& keyboard,
                            
  uint32_t skipped_lights = 0;
  for (int i = 0; i < led_column_table_length; ++i) {
-    const Key& key = keyboard.mKeys[i];
+    const Key& key = keyboard.keys_[i];
     uint32_t painted_lights = 0;
     
     // % of lights that are active.
-    const float active_lights_factor = led_column_table[i] * fl::sqrt(key.mCurrColor.v_);
+    const float active_lights_factor = led_column_table[i] * sqrt(key.curr_color_.v_);
     const float inactive_lights_factor = 1.0f - active_lights_factor;
     const float taper_point_1 = inactive_lights_factor / 2.0f;
     const float taper_point_2 = taper_point_1 + active_lights_factor; 
     
-    const int taper_idx_1 = static_cast<int>(fl::floor(taper_point_1 * led_column_table[i]));
-    const int taper_idx_2 = static_cast<int>(fl::floor(taper_point_2 * led_column_table[i]));
+    const int taper_idx_1 = static_cast<int>(floor(taper_point_1 * led_column_table[i]));
+    const int taper_idx_2 = static_cast<int>(floor(taper_point_2 * led_column_table[i]));
     
-    const Color3i c = key.mCurrColor.ToRGB();
+    const Color3i c = key.curr_color_.ToRGB();
     
     for (int i = 0; i < taper_idx_1 / 2; ++i) {
       led_rope->RawDrawPixel(Color3i::Black());
@@ -386,7 +378,7 @@ void Painter::VegasVisualizer(const KeyboardState& keyboard,
     }
     
     int length = taper_idx_2 - taper_idx_1;
-    for (int i = 0; i < fl::min(200, length); ++i) {
+    for (int i = 0; i < min(200, length); ++i) {
       led_rope->RawDrawPixel(c);
       painted_lights++;
     }
@@ -396,7 +388,7 @@ void Painter::VegasVisualizer(const KeyboardState& keyboard,
       led_rope->RawDrawPixel(Color3i::Black());
       painted_lights++;
     }
-    skipped_lights += fl::max(0, static_cast<int32_t>(led_column_table[i]) - static_cast<int32_t>(painted_lights));
+    skipped_lights += MAX(0, static_cast<int32_t>(led_column_table[i]) - static_cast<int32_t>(painted_lights));
   }
   
   for (uint32_t i = 0; i < skipped_lights; ++i) {
@@ -418,11 +410,11 @@ void Painter::PaintBrightSurprise(
   r = g = b = 0;
   
   for (int i = 0; i < KeyboardState::kNumKeys; ++i) {
-    const Key& key = keyboard.mKeys[i];
+    const Key& key = keyboard.keys_[i];
     
 
-    if (key.mCurrColor.v_ > 0.0f) {
-      const Color3i rgb = key.mCurrColor.ToRGB();
+    if (key.curr_color_.v_ > 0.0f) {
+      const Color3i rgb = key.curr_color_.ToRGB();
       r += rgb.r_;
       g += rgb.g_;
       b += rgb.b_;
@@ -456,10 +448,10 @@ void Painter::PaintVuSpaceInvaders(uint32_t /*now_ms*/,
  Color3i black = Color3i::Black();
                            
  for (int i = 0; i < led_column_table_length; ++i) {
-    const Key& key = keyboard.mKeys[i];
+    const Key& key = keyboard.keys_[i];
     
     const int pixel_count = led_column_table[i];
-    const int draw_pixel_count = fl::ceil(pixel_count * fl::sqrt(key.mCurrColor.v_));
+    const int draw_pixel_count = ceil(pixel_count * sqrt(key.curr_color_.v_));
     
     const int black_pixel_count = pixel_count - draw_pixel_count;
     

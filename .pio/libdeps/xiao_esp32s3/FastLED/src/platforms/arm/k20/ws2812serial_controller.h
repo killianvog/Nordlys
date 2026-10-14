@@ -1,35 +1,35 @@
-// IWYU pragma: private
-
 #ifndef __INC_WS2812SERIAL_CONTROLLER_H
 #define __INC_WS2812SERIAL_CONTROLLER_H
 
 #ifdef USE_WS2812SERIAL
-#include "fl/stl/allocator.h"
-#include "fl/stl/noexcept.h"
-namespace fl {
+
+#include "fl/namespace.h"
+
+FASTLED_NAMESPACE_BEGIN
+
 template<int DATA_PIN, EOrder RGB_ORDER>
 class CWS2812SerialController : public CPixelLEDController<RGB_ORDER, 8, 0xFF> {
     WS2812Serial *pserial;
-    u8 *drawbuffer,*framebuffer;
+    uint8_t *drawbuffer,*framebuffer;
 
-    void _init(int nLeds) FL_NO_EXCEPT {
-        if (pserial == nullptr) {
-            drawbuffer = (u8*)fl::malloc(nLeds * 3);
-            framebuffer = (u8*)fl::malloc(nLeds * 12);
-            pserial = new WS2812Serial(nLeds, framebuffer, drawbuffer, DATA_PIN, WS2812_RGB);  // ok bare allocation
+    void _init(int nLeds) {
+        if (pserial == NULL) {
+            drawbuffer = (uint8_t*)malloc(nLeds * 3);
+            framebuffer = (uint8_t*)malloc(nLeds * 12);
+            pserial = new WS2812Serial(nLeds, framebuffer, drawbuffer, DATA_PIN, WS2812_RGB);
             pserial->begin();
         }
     }
 
 public:
-    CWS2812SerialController() { pserial = nullptr; }
+    CWS2812SerialController() { pserial = NULL; }
 
     virtual void init() { /* do nothing yet */ }
 
-    virtual void showPixels(PixelController<RGB_ORDER, 8, 0xFF> & pixels) FL_NO_EXCEPT {
+    virtual void showPixels(PixelController<RGB_ORDER, 8, 0xFF> & pixels) {
         _init(pixels.size());
 
-        u8 *p = drawbuffer;
+        uint8_t *p = drawbuffer;
 
         while(pixels.has(1)) {
             *p++ = pixels.loadAndScale0();
@@ -42,6 +42,8 @@ public:
     }
 
 };
-}  // namespace fl
+
+FASTLED_NAMESPACE_END
+
 #endif // USE_WS2812SERIAL
 #endif // __INC_WS2812SERIAL_CONTROLLER_H

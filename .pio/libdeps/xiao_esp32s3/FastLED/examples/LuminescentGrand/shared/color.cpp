@@ -4,7 +4,6 @@
 
 #include "./color.h"
 #include "./util.h"
-#include "fl/math/math.h"
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -104,8 +103,8 @@ void ColorHSV::FromRGB(const Color3i& rgb) {
   FloatT r = (FloatT) rgb.r_/255.f;
   FloatT g = (FloatT) rgb.g_/255.f;
   FloatT b = (FloatT) rgb.b_/255.f;
-  FloatT max_rgb = fl::max(r, fl::max(g, b));
-  FloatT min_rgb = fl::min(r, fl::min(g, b));
+  FloatT max_rgb = max(r, max(g, b));
+  FloatT min_rgb = min(r, min(g, b));
   v_ = max_rgb;
 
   FloatT d = max_rgb - min_rgb;
@@ -149,3 +148,4 @@ Color3i ColorHSV::ToRGB() const {
 
   return Color3i(round(r * 255), round(g * 255), round(b * 255));
 }
+

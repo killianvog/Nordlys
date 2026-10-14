@@ -1,8 +1,5 @@
-// @filter: (board is not atmega8*)  // RGBW does not fit 8 KB flash (#4805)
 
 #include <FastLED.h>
-
-
 
 // How many leds in your strip?
 #define NUM_LEDS 10

@@ -1,0 +1,27 @@
+.pio/build/xiao_esp32s3/lib9ad/FastLED/fl/rectangular_draw_buffer.cpp.o: \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/rectangular_draw_buffer.cpp \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/rectangular_draw_buffer.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/map.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/namespace.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/vector.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/inplacenew.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/scoped_ptr.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/insert_result.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/template_magic.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/pair.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/assert.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/warn.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/dbg.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/strstream.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/crgb.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/chsv.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/color.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/lib8tion/types.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/force_inline.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/str.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/ptr.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/math_macros.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/slice.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/rgbw.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/eorder.h \
+ .pio/libdeps/xiao_esp32s3/FastLED/src/fl/allocator.h

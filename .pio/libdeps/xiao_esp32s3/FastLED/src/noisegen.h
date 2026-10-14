@@ -3,28 +3,34 @@
 
 #pragma once
 
-#include "fl/stl/stdint.h"
+#include <stdint.h>
 #include "noise.h"
 
-#include "fl/math/math.h"
+#include "fl/math_macros.h"
+#include "fl/namespace.h"
+
+FASTLED_NAMESPACE_BEGIN
+
+
 // Simple noise generator for 1-d waves. Default values will give good results
 // for most cases.
 struct NoiseGenerator {
-    fl::i32 iteration_scale;
+    int32_t iteration_scale;
     unsigned long time_multiplier;
 
     NoiseGenerator() : iteration_scale(10), time_multiplier(10) {}
-    NoiseGenerator(fl::i32 itScale, fl::i32 timeMul) : iteration_scale(itScale), time_multiplier(timeMul) {}
+    NoiseGenerator(int32_t itScale, int32_t timeMul) : iteration_scale(itScale), time_multiplier(timeMul) {}
 
-    fl::u8 Value(fl::i32 i, unsigned long time_ms) const {
-        fl::u32 input = iteration_scale * i + time_ms * time_multiplier;
-        fl::u16 v1 = inoise16(input);
-        return fl::u8(v1 >> 8);
+    uint8_t Value(int32_t i, unsigned long time_ms) const {
+        uint32_t input = iteration_scale * i + time_ms * time_multiplier;
+        uint16_t v1 = inoise16(input);
+        return uint8_t(v1 >> 8);
     }
 
-    int LedValue(fl::i32 i, unsigned long time_ms) const {
+    int LedValue(int32_t i, unsigned long time_ms) const {
         int val = Value(i, time_ms);
-        return fl::max(0, val - 128) * 2;
+        return MAX(0, val - 128) * 2;
     }
 };
 
+FASTLED_NAMESPACE_END

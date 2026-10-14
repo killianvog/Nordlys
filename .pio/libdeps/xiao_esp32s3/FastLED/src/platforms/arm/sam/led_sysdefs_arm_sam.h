@@ -1,20 +1,8 @@
-// IWYU pragma: private
-
-#include "platforms/arm/is_arm.h"
-
-// ok no namespace fl
 #ifndef __INC_LED_SYSDEFS_ARM_SAM_H
 #define __INC_LED_SYSDEFS_ARM_SAM_H
 
 
-#ifndef FL_IS_ARM
-#error "FL_IS_ARM must be defined before including this header. Ensure platforms/arm/is_arm.h is included first."
-#endif
-
-// SAM platforms don't use PROGMEM
-#ifndef FASTLED_USE_PROGMEM
-#define FASTLED_USE_PROGMEM 0
-#endif
+#define FASTLED_ARM
 
 // Setup DUE timer defines/channels/etc...
 #ifndef DUE_TIMER_CHANNEL

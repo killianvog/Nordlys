@@ -1,75 +1,53 @@
 #pragma once
 
-// IWYU pragma: private
-
-#include "fl/stl/stdint.h"
+#include <stdint.h>
 #include "eorder.h"
-#include "fl/stl/compiler_control.h"
-#include "fl/chipsets/timing_traits.h"
-#include "fastled_delay.h"
-#include "fl/stl/compiler_control.h"
-#include "fl/stl/noexcept.h"
-#include "fl/system/delay.h"
+#include "fl/namespace.h"
+#include "fl/register.h"
 
-FL_DISABLE_WARNING_PUSH
-FL_DISABLE_WARNING_DEPRECATED_REGISTER
-namespace fl {
+FASTLED_NAMESPACE_BEGIN
+
 #ifdef FASTLED_DEBUG_COUNT_FRAME_RETRIES
-extern u32 _frame_cnt;
-extern u32 _retry_cnt;
+extern uint32_t _frame_cnt;
+extern uint32_t _retry_cnt;
 #endif
 
 // Info on reading cycle counter from https://github.com/kbeckmann/nodemcu-firmware/blob/ws2812-dual/app/modules/ws2812.c
-__attribute__ ((always_inline)) inline static u32 __clock_cycles() FL_NO_EXCEPT {
-  u32 cyc;
+__attribute__ ((always_inline)) inline static uint32_t __clock_cycles() {
+  uint32_t cyc;
   __asm__ __volatile__ ("rsr %0,ccount":"=a" (cyc));
   return cyc;
 }
 
-#define FL_CLOCKLESS_CONTROLLER_DEFINED 1
+#define FASTLED_HAS_CLOCKLESS 1
 
-#ifndef FASTLED_ESP8266_CLOCKLESS_WAIT_TIME
-#define FASTLED_ESP8266_CLOCKLESS_WAIT_TIME 85
-#endif
-
-template <int DATA_PIN, typename TIMING, EOrder RGB_ORDER = RGB, int XTRA0 = 0, bool FLIP = false, int WAIT_TIME = FASTLED_ESP8266_CLOCKLESS_WAIT_TIME>
+template <int DATA_PIN, int T1, int T2, int T3, EOrder RGB_ORDER = RGB, int XTRA0 = 0, bool FLIP = false, int WAIT_TIME = 85>
 class ClocklessController : public CPixelLEDController<RGB_ORDER> {
 	typedef typename FastPin<DATA_PIN>::port_ptr_t data_ptr_t;
 	typedef typename FastPin<DATA_PIN>::port_t data_t;
-
-	// Convert nanoseconds to CPU cycles (compile-time)
-	// Formula: cycles = (ns * (F_CPU / 1MHz) + 500) / 1000
-	// +500 for rounding to nearest cycle
-	static constexpr u32 NS_TO_CYCLES(u32 ns) {
-		return (ns * (F_CPU / 1000000UL) + 500) / 1000;
-	}
-
-	static constexpr u32 T1 = NS_TO_CYCLES(TIMING::T1);  // Convert nanoseconds → CPU cycles
-	static constexpr u32 T2 = NS_TO_CYCLES(TIMING::T2);
-	static constexpr u32 T3 = NS_TO_CYCLES(TIMING::T3);
 
 	data_t mPinMask;
 	data_ptr_t mPort;
 	CMinWait<WAIT_TIME> mWait;
 public:
-	virtual void init() FL_NO_EXCEPT {
+	virtual void init() {
 		FastPin<DATA_PIN>::setOutput();
 		mPinMask = FastPin<DATA_PIN>::mask();
 		mPort = FastPin<DATA_PIN>::port();
 	}
 
-	virtual u16 getMaxRefreshRate() const FL_NO_EXCEPT { return 400; }
+	virtual uint16_t getMaxRefreshRate() const { return 400; }
 
 protected:
 
-	virtual void showPixels(PixelController<RGB_ORDER> & pixels) FL_NO_EXCEPT {
+	virtual void showPixels(PixelController<RGB_ORDER> & pixels) {
     mWait.wait();
 		int cnt = FASTLED_INTERRUPT_RETRY_COUNT;
     while((showRGBInternal(pixels)==0) && cnt--) {
       #ifdef FASTLED_DEBUG_COUNT_FRAME_RETRIES
       ++_retry_cnt;
       #endif
-      fl::delayMicroseconds(WAIT_TIME);
+      delayMicroseconds(WAIT_TIME);
     }
     mWait.mark();
   }
@@ -77,9 +55,9 @@ protected:
 #define _ESP_ADJ (0)
 #define _ESP_ADJ2 (0)
 
-	template<int BITS> __attribute__ ((always_inline)) inline static bool writeBits(FASTLED_REGISTER u32 & last_mark, FASTLED_REGISTER u32 b) FL_NO_EXCEPT {
+	template<int BITS> __attribute__ ((always_inline)) inline static bool writeBits(FASTLED_REGISTER uint32_t & last_mark, FASTLED_REGISTER uint32_t b)  {
     b <<= 24; b = ~b;
-    for(FASTLED_REGISTER u32 i = BITS; i > 0; --i) {
+    for(FASTLED_REGISTER uint32_t i = BITS; i > 0; --i) {
       while((__clock_cycles() - last_mark) < (T1+T2+T3)) {
             ;
       }
@@ -110,28 +88,28 @@ protected:
 	}
 
 
-	static u32 FL_IRAM showRGBInternal(PixelController<RGB_ORDER> pixels) FL_NO_EXCEPT {
+	static uint32_t IRAM_ATTR showRGBInternal(PixelController<RGB_ORDER> pixels) {
 		// Setup the pixel controller and load/scale the first byte
 		pixels.preStepFirstByteDithering();
-		FASTLED_REGISTER u32 b = pixels.loadAndScale0();
+		FASTLED_REGISTER uint32_t b = pixels.loadAndScale0();
 		pixels.preStepFirstByteDithering();
-		u32 start;
+		uint32_t start;
 		
 		// This function has multiple exits, so we'll use an object
 		// with a destructor that releases the interrupt lock, regardless
 		// of how we exit the function.  It also has methods for manually
 		// unlocking and relocking interrupts temporarily.
 		struct InterruptLock {
-			InterruptLock() FL_NO_EXCEPT {
+			InterruptLock() {
 				os_intr_lock();
 			}
 			~InterruptLock() {
 				os_intr_unlock();
 			}
-			void Unlock() FL_NO_EXCEPT {
+			void Unlock() {
 				os_intr_unlock();
 			}
-			void Lock() FL_NO_EXCEPT {
+			void Lock() {
 				os_intr_lock();
 			}
 		};
@@ -140,7 +118,7 @@ protected:
 			InterruptLock intlock;
 
 			start = __clock_cycles();
-			u32 last_mark = start;
+			uint32_t last_mark = start;
 			while(pixels.has(1)) {
 				// Write first byte, read next byte
 				if (writeBits<8+XTRA0>(last_mark, b)) {
@@ -169,8 +147,8 @@ protected:
 				#if (FASTLED_ALLOW_INTERRUPTS == 1)
 				intlock.Lock();
 				// if interrupts took longer than 45µs, punt on the current frame
-				if((i32)(__clock_cycles()-last_mark) > 0) {
-					if((i32)(__clock_cycles()-last_mark) > (i32)(T1+T2+T3+((WAIT_TIME-INTERRUPT_THRESHOLD)*CLKS_PER_US))) {
+				if((int32_t)(__clock_cycles()-last_mark) > 0) {
+					if((int32_t)(__clock_cycles()-last_mark) > (T1+T2+T3+((WAIT_TIME-INTERRUPT_THRESHOLD)*CLKS_PER_US))) {
 						return 0;
 					}
 				}
@@ -184,6 +162,5 @@ protected:
 		return __clock_cycles() - start;
 	}
 };
-}  // namespace fl
 
-FL_DISABLE_WARNING_POP
+FASTLED_NAMESPACE_END

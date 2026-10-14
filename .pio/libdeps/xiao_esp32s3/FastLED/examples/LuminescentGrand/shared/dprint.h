@@ -1,8 +1,6 @@
 
 #pragma once
 
-#include "fl/stl/compiler_control.h"
-
 
 extern bool is_debugging;
 //#define ENABLE_DPRINT
@@ -10,6 +8,6 @@ extern bool is_debugging;
  #define dprint(x) if (is_debugging) { Serial.print(x); }
  #define dprintln(x) if (is_debugging) { Serial.println(x); }
 #else
- #define dprint(x) FL_UNUSED(x)
- #define dprintln(x) FL_UNUSED(x)
+ #define dprint(x)
+ #define dprintln(x)
 #endif

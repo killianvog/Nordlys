@@ -1,5 +1,3 @@
-// IWYU pragma: private
-
 #ifndef __INC_FASTSPI_ARM_H
 #define __INC_FASTSPI_ARM_H
 
@@ -10,18 +8,10 @@
 // TODO: add alternative pins for SPI1
 // TODO: add SPI2 output
 //
-#include "fl/math/math.h"
-#include "fastspi_types.h"
-#include "platforms/arm/teensy/is_teensy.h"
-#include "fl/stl/compiler_control.h"
-#include "fl/stl/noexcept.h"
 
-FL_DISABLE_WARNING_PUSH
-FL_DISABLE_WARNING_DEPRECATED_REGISTER
+FASTLED_NAMESPACE_BEGIN
 
-namespace fl {
-
-#if defined(FL_IS_TEENSY_3X) && defined(CORE_TEENSY)
+#if defined(FASTLED_TEENSY3) && defined(CORE_TEENSY)
 
 // Version 1.20 renamed SPI_t to KINETISK_SPI_t
 #if TEENSYDUINO >= 120
@@ -53,18 +43,20 @@ public:
 	static int highestBit() __attribute__((always_inline)) { return 0; }
 };
 
+#define MAX(A, B) (( (A) > (B) ) ? (A) : (B))
+
 #define USE_CONT 0
 // intra-frame backup data
 struct SPIState {
-	u32 _ctar0,_ctar1;
-	u32 pins[4];
+	uint32_t _ctar0,_ctar1;
+	uint32_t pins[4];
 };
 
 // extern SPIState gState;
 
 
 // Templated function to translate a clock divider value into the prescalar, scalar, and clock doubling setting for the world.
-template <int VAL> void getScalars(u32 & preScalar, u32 & scalar, u32 & dbl) FL_NO_EXCEPT {
+template <int VAL> void getScalars(uint32_t & preScalar, uint32_t & scalar, uint32_t & dbl) {
 	switch(VAL) {
 		// Handle the dbl clock cases
 		case 0: case 1:
@@ -94,7 +86,7 @@ template <int VAL> void getScalars(u32 & preScalar, u32 & scalar, u32 & dbl) FL_
 			int w5 = (VAL/5) > 0 ? 5 * (1 << p5) : 0;
 			int w7 = (VAL/7) > 0 ? 7 * (1 << p7) : 0;
 
-			int maxval = fl::max(fl::max(w2, w3), fl::max(w5, w7));
+			int maxval = MAX(MAX(w2, w3), MAX(w5, w7));
 
 			if(w2 == maxval) { preScalar = 0; scalar = p2; }
 			else if(w3 == maxval) { preScalar = 1; scalar = p3; }
@@ -111,14 +103,14 @@ template <int VAL> void getScalars(u32 & preScalar, u32 & scalar, u32 & dbl) FL_
 
 #define SPIX (*(SPI_t*)pSPIX)
 
-template <u8 _DATA_PIN, u8 _CLOCK_PIN, u32 _SPI_CLOCK_DIVIDER, u32 pSPIX>
+template <uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER, uint32_t pSPIX>
 class ARMHardwareSPIOutput {
-	Selectable *mPSelect;
+	Selectable *m_pSelect;
 	SPIState gState;
 
 	// Borrowed from the teensy3 SPSR emulation code -- note, enabling pin 7 disables pin 11 (and vice versa),
 	// and likewise enabling pin 14 disables pin 13 (and vice versa)
-	inline void enable_pins(void) FL_NO_EXCEPT __attribute__((always_inline)) {
+	inline void enable_pins(void) __attribute__((always_inline)) {
 		//serial_print("enable_pins\n");
 		switch(_DATA_PIN) {
 			case 7:
@@ -144,7 +136,7 @@ class ARMHardwareSPIOutput {
 	}
 
 	// Borrowed from the teensy3 SPSR emulation code.  We disable the pins that we're using, and restore the state on the pins that we aren't using
-	inline void disable_pins(void) FL_NO_EXCEPT __attribute__((always_inline)) {
+	inline void disable_pins(void) __attribute__((always_inline)) {
 		switch(_DATA_PIN) {
 			case 7: CORE_PIN7_CONFIG = PORT_PCR_SRE | PORT_PCR_DSE | PORT_PCR_MUX(1); CORE_PIN11_CONFIG = gState.pins[1]; break;
 			case 11: CORE_PIN11_CONFIG = PORT_PCR_SRE | PORT_PCR_DSE | PORT_PCR_MUX(1); CORE_PIN7_CONFIG = gState.pins[0]; break;
@@ -156,9 +148,9 @@ class ARMHardwareSPIOutput {
 		}
 	}
 
-	static inline void update_ctars(u32 ctar0, u32 ctar1) FL_NO_EXCEPT __attribute__((always_inline)) {
+	static inline void update_ctars(uint32_t ctar0, uint32_t ctar1) __attribute__((always_inline)) {
 		if(SPIX.CTAR0 == ctar0 && SPIX.CTAR1 == ctar1) return;
-		u32 mcr = SPIX.MCR;
+		uint32_t mcr = SPIX.MCR;
 		if(mcr & SPI_MCR_MDIS) {
 			SPIX.CTAR0 = ctar0;
 			SPIX.CTAR1 = ctar1;
@@ -170,9 +162,9 @@ class ARMHardwareSPIOutput {
 		}
 	}
 
-	static inline void update_ctar0(u32 ctar) FL_NO_EXCEPT __attribute__((always_inline)) {
+	static inline void update_ctar0(uint32_t ctar) __attribute__((always_inline)) {
 		if (SPIX.CTAR0 == ctar) return;
-		u32 mcr = SPIX.MCR;
+		uint32_t mcr = SPIX.MCR;
 		if (mcr & SPI_MCR_MDIS) {
 			SPIX.CTAR0 = ctar;
 		} else {
@@ -183,9 +175,9 @@ class ARMHardwareSPIOutput {
 		}
 	}
 
-	static inline void update_ctar1(u32 ctar) FL_NO_EXCEPT __attribute__((always_inline)) {
+	static inline void update_ctar1(uint32_t ctar) __attribute__((always_inline)) {
 		if (SPIX.CTAR1 == ctar) return;
-		u32 mcr = SPIX.MCR;
+		uint32_t mcr = SPIX.MCR;
 		if (mcr & SPI_MCR_MDIS) {
 			SPIX.CTAR1 = ctar;
 		} else {
@@ -196,12 +188,12 @@ class ARMHardwareSPIOutput {
 		}
 	}
 
-	void setSPIRate() FL_NO_EXCEPT {
+	void setSPIRate() {
 		// Configure CTAR0, defaulting to 8 bits and CTAR1, defaulting to 16 bits
-		u32 _PBR = 0;
-		u32 _BR = 0;
-		u32 _CSSCK = 0;
-		u32 _DBR = 0;
+		uint32_t _PBR = 0;
+		uint32_t _BR = 0;
+		uint32_t _CSSCK = 0;
+		uint32_t _DBR = 0;
 
 		// if(_SPI_CLOCK_DIVIDER >= 256) 		{ _PBR = 0; _BR = _CSSCK = 7; _DBR = 0; } // osc/256
 		// else if(_SPI_CLOCK_DIVIDER >= 128) 	{ _PBR = 0; _BR = _CSSCK = 6; _DBR = 0; } // osc/128
@@ -218,8 +210,8 @@ class ARMHardwareSPIOutput {
 		getScalars<_SPI_CLOCK_DIVIDER>(_PBR, _BR, _DBR);
 		_CSSCK = _BR;
 
-		u32 ctar0 = SPI_CTAR_FMSZ(7) | SPI_CTAR_PBR(_PBR) | SPI_CTAR_BR(_BR) | SPI_CTAR_CSSCK(_CSSCK);
-		u32 ctar1 = SPI_CTAR_FMSZ(15) | SPI_CTAR_PBR(_PBR) | SPI_CTAR_BR(_BR) | SPI_CTAR_CSSCK(_CSSCK);
+		uint32_t ctar0 = SPI_CTAR_FMSZ(7) | SPI_CTAR_PBR(_PBR) | SPI_CTAR_BR(_BR) | SPI_CTAR_CSSCK(_CSSCK);
+		uint32_t ctar1 = SPI_CTAR_FMSZ(15) | SPI_CTAR_PBR(_PBR) | SPI_CTAR_BR(_BR) | SPI_CTAR_CSSCK(_CSSCK);
 
 		#if USE_CONT == 1
 		ctar0 |= SPI_CTAR_CPHA | SPI_CTAR_CPOL;
@@ -234,7 +226,7 @@ class ARMHardwareSPIOutput {
 		update_ctars(ctar0,ctar1);
 	}
 
-	void inline save_spi_state() FL_NO_EXCEPT __attribute__ ((always_inline)) {
+	void inline save_spi_state() __attribute__ ((always_inline)) {
 		// save ctar data
 		gState._ctar0 = SPIX.CTAR0;
 		gState._ctar1 = SPIX.CTAR1;
@@ -246,7 +238,7 @@ class ARMHardwareSPIOutput {
 		gState.pins[3] = CORE_PIN14_CONFIG;
 	}
 
-	void inline restore_spi_state() FL_NO_EXCEPT __attribute__ ((always_inline)) {
+	void inline restore_spi_state() __attribute__ ((always_inline)) {
 		// restore ctar data
 		update_ctars(gState._ctar0,gState._ctar1);
 
@@ -258,18 +250,18 @@ class ARMHardwareSPIOutput {
 	}
 
 public:
-	ARMHardwareSPIOutput() { mPSelect = nullptr; }
-	ARMHardwareSPIOutput(Selectable *pSelect) { mPSelect = pSelect; }
-	void setSelect(Selectable *pSelect) { mPSelect = pSelect; }
+	ARMHardwareSPIOutput() { m_pSelect = NULL; }
+	ARMHardwareSPIOutput(Selectable *pSelect) { m_pSelect = pSelect; }
+	void setSelect(Selectable *pSelect) { m_pSelect = pSelect; }
 
 
-	void init() FL_NO_EXCEPT {
+	void init() {
 		// set the pins to output
 		FastPin<_DATA_PIN>::setOutput();
 		FastPin<_CLOCK_PIN>::setOutput();
 
 		// Enable SPI0 clock
-		u32 sim6 = SIM_SCGC6;
+		uint32_t sim6 = SIM_SCGC6;
 		if((SPI_t*)pSPIX == &KINETISK_SPI0) {
 			if (!(sim6 & SIM_SCGC6_SPI0)) {
 				//serial_print("init1\n");
@@ -291,7 +283,7 @@ public:
 		// pin/spi configuration happens on select
 	}
 
-	static void waitFully() FL_NO_EXCEPT __attribute__((always_inline)) {
+	static void waitFully() __attribute__((always_inline)) {
 		// Wait for the last byte to get shifted into the register
 		bool empty = false;
 
@@ -328,7 +320,7 @@ public:
 
 	template<ECont CONT_STATE, EWait WAIT_STATE, ELast LAST_STATE> class Write {
 	public:
-		static void writeWord(u16 w) FL_NO_EXCEPT __attribute__((always_inline)) {
+		static void writeWord(uint16_t w) __attribute__((always_inline)) {
 			if(WAIT_STATE == PRE) { wait(); }
 			SPIX.PUSHR = ((LAST_STATE == LAST) ? SPI_PUSHR_EOQ : 0) |
 						 ((CONT_STATE == CONT) ? SPI_PUSHR_CONT : 0) |
@@ -337,7 +329,7 @@ public:
 			if(WAIT_STATE == POST) { wait(); }
 		}
 
-		static void writeByte(u8 b) FL_NO_EXCEPT __attribute__((always_inline)) {
+		static void writeByte(uint8_t b) __attribute__((always_inline)) {
 			if(WAIT_STATE == PRE) { wait(); }
 			SPIX.PUSHR = ((LAST_STATE == LAST) ? SPI_PUSHR_EOQ : 0) |
 						 ((CONT_STATE == CONT) ? SPI_PUSHR_CONT : 0) |
@@ -347,26 +339,26 @@ public:
 		}
 	};
 
-	static void writeWord(u16 w) __attribute__((always_inline)) { wait(); SPIX.PUSHR = SPI_PUSHR_CTAS(1) | (w & 0xFFFF); SPIX.SR |= SPI_SR_TCF;}
-	static void writeWordNoWait(u16 w) __attribute__((always_inline)) { SPIX.PUSHR = SPI_PUSHR_CTAS(1) | (w & 0xFFFF); SPIX.SR |= SPI_SR_TCF;}
+	static void writeWord(uint16_t w) __attribute__((always_inline)) { wait(); SPIX.PUSHR = SPI_PUSHR_CTAS(1) | (w & 0xFFFF); SPIX.SR |= SPI_SR_TCF;}
+	static void writeWordNoWait(uint16_t w) __attribute__((always_inline)) { SPIX.PUSHR = SPI_PUSHR_CTAS(1) | (w & 0xFFFF); SPIX.SR |= SPI_SR_TCF;}
 
-	static void writeByte(u8 b) __attribute__((always_inline)) { wait(); SPIX.PUSHR = SPI_PUSHR_CTAS(0) | (b & 0xFF); SPIX.SR |= SPI_SR_TCF;}
-	static void writeBytePostWait(u8 b) __attribute__((always_inline)) { SPIX.PUSHR = SPI_PUSHR_CTAS(0) | (b & 0xFF);SPIX.SR |= SPI_SR_TCF; wait(); }
-	static void writeByteNoWait(u8 b) __attribute__((always_inline)) { SPIX.PUSHR = SPI_PUSHR_CTAS(0) | (b & 0xFF); SPIX.SR |= SPI_SR_TCF;}
+	static void writeByte(uint8_t b) __attribute__((always_inline)) { wait(); SPIX.PUSHR = SPI_PUSHR_CTAS(0) | (b & 0xFF); SPIX.SR |= SPI_SR_TCF;}
+	static void writeBytePostWait(uint8_t b) __attribute__((always_inline)) { SPIX.PUSHR = SPI_PUSHR_CTAS(0) | (b & 0xFF);SPIX.SR |= SPI_SR_TCF; wait(); }
+	static void writeByteNoWait(uint8_t b) __attribute__((always_inline)) { SPIX.PUSHR = SPI_PUSHR_CTAS(0) | (b & 0xFF); SPIX.SR |= SPI_SR_TCF;}
 
-	static void writeWordCont(u16 w) __attribute__((always_inline)) { wait(); SPIX.PUSHR = SPI_PUSHR_CONT | SPI_PUSHR_CTAS(1) | (w & 0xFFFF); SPIX.SR |= SPI_SR_TCF;}
-	static void writeWordContNoWait(u16 w) __attribute__((always_inline)) { SPIX.PUSHR = SPI_PUSHR_CONT | SPI_PUSHR_CTAS(1) | (w & 0xFFFF); SPIX.SR |= SPI_SR_TCF;}
+	static void writeWordCont(uint16_t w) __attribute__((always_inline)) { wait(); SPIX.PUSHR = SPI_PUSHR_CONT | SPI_PUSHR_CTAS(1) | (w & 0xFFFF); SPIX.SR |= SPI_SR_TCF;}
+	static void writeWordContNoWait(uint16_t w) __attribute__((always_inline)) { SPIX.PUSHR = SPI_PUSHR_CONT | SPI_PUSHR_CTAS(1) | (w & 0xFFFF); SPIX.SR |= SPI_SR_TCF;}
 
-	static void writeByteCont(u8 b) __attribute__((always_inline)) { wait(); SPIX.PUSHR = SPI_PUSHR_CONT | SPI_PUSHR_CTAS(0) | (b & 0xFF); SPIX.SR |= SPI_SR_TCF;}
-	static void writeByteContPostWait(u8 b) __attribute__((always_inline)) { SPIX.PUSHR = SPI_PUSHR_CONT | SPI_PUSHR_CTAS(0) | (b & 0xFF); SPIX.SR |= SPI_SR_TCF;wait(); }
-	static void writeByteContNoWait(u8 b) __attribute__((always_inline)) { SPIX.PUSHR = SPI_PUSHR_CONT | SPI_PUSHR_CTAS(0) | (b & 0xFF); SPIX.SR |= SPI_SR_TCF;}
+	static void writeByteCont(uint8_t b) __attribute__((always_inline)) { wait(); SPIX.PUSHR = SPI_PUSHR_CONT | SPI_PUSHR_CTAS(0) | (b & 0xFF); SPIX.SR |= SPI_SR_TCF;}
+	static void writeByteContPostWait(uint8_t b) __attribute__((always_inline)) { SPIX.PUSHR = SPI_PUSHR_CONT | SPI_PUSHR_CTAS(0) | (b & 0xFF); SPIX.SR |= SPI_SR_TCF;wait(); }
+	static void writeByteContNoWait(uint8_t b) __attribute__((always_inline)) { SPIX.PUSHR = SPI_PUSHR_CONT | SPI_PUSHR_CTAS(0) | (b & 0xFF); SPIX.SR |= SPI_SR_TCF;}
 
 	// not the most efficient mechanism in the world - but should be enough for sm16716 and friends
-	template <u8 BIT> inline static void writeBit(u8 b) FL_NO_EXCEPT {
-		u32 ctar1_save = SPIX.CTAR1;
+	template <uint8_t BIT> inline static void writeBit(uint8_t b) {
+		uint32_t ctar1_save = SPIX.CTAR1;
 
 		// Clear out the FMSZ bits, reset them for 1 bit transferd for the start bit
-		u32 ctar1 = (ctar1_save & (~SPI_CTAR_FMSZ(15))) | SPI_CTAR_FMSZ(0);
+		uint32_t ctar1 = (ctar1_save & (~SPI_CTAR_FMSZ(15))) | SPI_CTAR_FMSZ(0);
 		update_ctar1(ctar1);
 
 		writeWord( (b & (1 << BIT)) != 0);
@@ -374,29 +366,24 @@ public:
 		update_ctar1(ctar1_save);
 	}
 
-	void inline select() FL_NO_EXCEPT __attribute__((always_inline)) {
+	void inline select() __attribute__((always_inline)) {
 		save_spi_state();
-		if(mPSelect != nullptr) { mPSelect->select(); }
+		if(m_pSelect != NULL) { m_pSelect->select(); }
 		setSPIRate();
 		enable_pins();
 	}
 
-	void inline release() FL_NO_EXCEPT __attribute__((always_inline)) {
+	void inline release() __attribute__((always_inline)) {
 		disable_pins();
-		if(mPSelect != nullptr) { mPSelect->release(); }
+		if(m_pSelect != NULL) { m_pSelect->release(); }
 		restore_spi_state();
 	}
 
-	void endTransaction() FL_NO_EXCEPT {
-		waitFully();
-		release();
-	}
-
-	static void writeBytesValueRaw(u8 value, int len) FL_NO_EXCEPT {
+	static void writeBytesValueRaw(uint8_t value, int len) {
 		while(len--) { Write<CM, WM, NOTLAST>::writeByte(value); }
 	}
 
-	void writeBytesValue(u8 value, int len) FL_NO_EXCEPT {
+	void writeBytesValue(uint8_t value, int len) {
 		select();
 		while(len--) {
 			writeByte(value);
@@ -406,8 +393,8 @@ public:
 	}
 
 	// Write a block of n uint8_ts out
-	template <class D> void writeBytes(FASTLED_REGISTER u8 *data, int len) FL_NO_EXCEPT {
-		u8 *end = data + len;
+	template <class D> void writeBytes(FASTLED_REGISTER uint8_t *data, int len) {
+		uint8_t *end = data + len;
 		select();
 		// could be optimized to write 16bit words out instead of 8bit bytes
 		while(data != end) {
@@ -418,11 +405,11 @@ public:
 		release();
 	}
 
-	void writeBytes(FASTLED_REGISTER u8 *data, int len) { writeBytes<DATA_NOP>(data, len); }
+	void writeBytes(FASTLED_REGISTER uint8_t *data, int len) { writeBytes<DATA_NOP>(data, len); }
 
 	// write a block of uint8_ts out in groups of three.  len is the total number of uint8_ts to write out.  The template
 	// parameters indicate how many uint8_ts to skip at the beginning and/or end of each grouping
-	template <u8 FLAGS, class D, EOrder RGB_ORDER> void writePixels(PixelController<RGB_ORDER> pixels, void* context = nullptr) FL_NO_EXCEPT {
+	template <uint8_t FLAGS, class D, EOrder RGB_ORDER> void writePixels(PixelController<RGB_ORDER> pixels, void* context = NULL) {
 		select();
 		int len = pixels.mLen;
 
@@ -454,10 +441,10 @@ public:
 			D::postBlock(len);
 			waitFully();
 		} else if(FLAGS & FLAG_START_BIT) {
-			u32 ctar1_save = SPIX.CTAR1;
+			uint32_t ctar1_save = SPIX.CTAR1;
 
 			// Clear out the FMSZ bits, reset them for 9 bits transferd for the start bit
-			u32 ctar1 = (ctar1_save & (~SPI_CTAR_FMSZ(15))) | SPI_CTAR_FMSZ(8);
+			uint32_t ctar1 = (ctar1_save & (~SPI_CTAR_FMSZ(15))) | SPI_CTAR_FMSZ(8);
 			update_ctar1(ctar1);
 
 			while(pixels.has(1)) {
@@ -475,15 +462,9 @@ public:
 		}
 		release();
 	}
-
-	/// Finalize transmission (no-op for Teensy 3.6 SPI)
-	/// This method exists for compatibility with other SPI implementations
-	/// that may need to flush buffers or perform post-transmission operations
-	static void finalizeTransmission() { }
 };
 #endif
-}  // namespace fl
 
-FL_DISABLE_WARNING_POP
+FASTLED_NAMESPACE_END
 
 #endif

@@ -1,16 +1,9 @@
-// IWYU pragma: private
-
-#include "platforms/arm/is_arm.h"
-
-// ok no namespace fl
 #ifndef __INC_LED_SYSDEFS_ARM_D21_H
 #define __INC_LED_SYSDEFS_ARM_D21_H
 
 
-#ifndef FL_IS_ARM
-#error "FL_IS_ARM must be defined before including this header. Ensure platforms/arm/is_arm.h is included first."
-#endif
-#define FL_IS_ARM_M0_PLUS
+#define FASTLED_ARM
+#define FASTLED_ARM_M0_PLUS
 
 #ifndef INTERRUPT_THRESHOLD
 #define INTERRUPT_THRESHOLD 1

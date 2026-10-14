@@ -5,26 +5,13 @@
 #include "FastLED.h"
 
 
-#if FL_PLATFORM_HAS_TINY_MEMORY
-// Pixel storage plus palettes must fit in 512 B SRAM on ATtiny85.
-#define NUM_LEDS 16
-#else
-#define NUM_LEDS 100
-#endif
+#define NUM_LEDS      100
 #define LED_TYPE   WS2811
 #define COLOR_ORDER   GRB
 #define DATA_PIN        3
 //#define CLK_PIN       4
 #define VOLTS          12
 #define MAX_MA       4000
-
-// Forward declarations
-void chooseNextColorPalette(CRGBPalette16& pal);
-void drawTwinkles(CRGBSet& L);
-CRGB computeOneTwinkle(uint32_t ms, uint8_t salt);
-uint8_t attackDecayWave8(uint8_t i);
-void coolLikeIncandescent(CRGB& c, uint8_t phase);
-
 
 //  TwinkleFOX: Twinkling 'holiday' lights that fade in and out.
 //  Colors are chosen from a palette; a few palettes are provided.
@@ -127,7 +114,7 @@ CRGBPalette16 gCurrentPalette;
 CRGBPalette16 gTargetPalette;
 
 void setup() {
-  delay(3000); // safety startup delay
+  delay( 3000 ); //safety startup delay
   FastLED.setMaxPowerInVoltsAndMilliamps( VOLTS, MAX_MA);
   FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS)
     .setCorrection(TypicalLEDStrip);

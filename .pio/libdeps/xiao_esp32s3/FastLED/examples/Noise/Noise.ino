@@ -4,22 +4,13 @@
 
 #include <FastLED.h>
 
-// Uncomment to enable a slowly cycling base hue
-// #define USE_HUE
-
 //
 // Mark's xy coordinate mapping code.  See the XYMatrix for more information on it.
 //
 
 // Params for width and height
-#if defined(__AVR_ATmega8__) || defined(__AVR_ATmega8A__) || \
-    defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny88__) || \
-    defined(__AVR_ATtiny204__) || defined(__AVR_ATtiny404__)
-// A 16x16 framebuffer alone uses 768 B, more than these boards can spare.
-const uint8_t kMatrixWidth = 4;
-const uint8_t kMatrixHeight = 4;
-#elif defined(__AVR_ATtinyxy4__)
-// Small matrix for this memory constrained device.
+#if defined(__AVR_ATtinyxy4__)
+// Tiny 4x4 matrix for this memory constrained device.
 const uint8_t kMatrixWidth = 8;
 const uint8_t kMatrixHeight = 8;
 #else
@@ -113,26 +104,20 @@ void fillnoise8() {
 
 
 void loop() {
-#ifdef USE_HUE
   static uint8_t ihue=0;
-#endif
   fillnoise8();
   for(int i = 0; i < kMatrixWidth; i++) {
     for(int j = 0; j < kMatrixHeight; j++) {
       // We use the value at the (i,j) coordinate in the noise
       // array for our brightness, and the flipped value from (j,i)
       // for our pixel's hue.
-#ifdef USE_HUE
-      // Slowly cycling base hue plus noise-derived offset
-      leds[XY(i,j)] = CHSV(ihue + (noise[j][i]>>2),255,noise[i][j]);
-#else
       leds[XY(i,j)] = CHSV(noise[j][i],255,noise[i][j]);
-#endif
+
+      // You can also explore other ways to constrain the hue used, like below
+      // leds[XY(i,j)] = CHSV(ihue + (noise[j][i]>>2),255,noise[i][j]);
     }
   }
-#ifdef USE_HUE
   ihue+=1;
-#endif
 
   FastLED.show();
   // delay(10);

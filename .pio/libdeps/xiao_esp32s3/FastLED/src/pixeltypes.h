@@ -3,9 +3,10 @@
 /// @file pixeltypes.h
 /// Includes defintions for RGB and HSV pixels
 
-#include "fl/stl/stdint.h"
+#include <stdint.h>
 #include "lib8tion.h"
 #include "color.h"
 #include "eorder.h"
 #include "chsv.h"
 #include "crgb.hpp"
+

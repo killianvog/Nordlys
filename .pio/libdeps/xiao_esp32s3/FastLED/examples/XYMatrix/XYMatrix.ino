@@ -2,8 +2,6 @@
 /// @brief   Demonstrates how to use an XY position helper function with a 2D matrix
 /// @example XYMatrix.ino
 
-// @filter: (board is not ATtiny1604)
-
 #include <FastLED.h>
 
 #define LED_PIN  3
@@ -31,14 +29,8 @@
 
 
 // Params for width and height
-#if FL_PLATFORM_HAS_TINY_MEMORY
-// A 16x16 CRGB matrix uses 768 B before controller state and stack.
-const uint8_t kMatrixWidth = 4;
-const uint8_t kMatrixHeight = 4;
-#else
 const uint8_t kMatrixWidth = 16;
 const uint8_t kMatrixHeight = 16;
-#endif
 
 // Param for different pixel layouts
 const bool    kMatrixSerpentineLayout = true;
@@ -178,14 +170,7 @@ uint16_t XY( uint8_t x, uint8_t y)
 CRGB leds_plus_safety_pixel[ NUM_LEDS + 1];
 CRGB* const leds( leds_plus_safety_pixel + 1);
 
-// NOTE: the return type must be SIGNED. Returning -1 from a uint16_t makes the
-// value 65535, which only behaves like -1 where int is 16 bits wide (AVR). On a
-// 32-bit board it promotes to the int 65535, so leds[XYsafe(...)] indexes far
-// past the array instead of landing on the safety pixel.
-//
-// `int` rather than `int16_t` so that on 32-bit boards the type stays wide
-// enough for any matrix a board that size can actually hold.
-int XYsafe( uint8_t x, uint8_t y)
+uint16_t XYsafe( uint8_t x, uint8_t y)
 {
   if( x >= kMatrixWidth) return -1;
   if( y >= kMatrixHeight) return -1;
@@ -228,4 +213,5 @@ void loop()
     }
     FastLED.show();
 }
+
 

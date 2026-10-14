@@ -1,109 +1,197 @@
-#pragma once
-
 /// @file fastspi.h
 /// Serial peripheral interface (SPI) definitions per platform
-///
-/// ARCHITECTURE:
-/// This file provides:
-/// 1. Common SPI macros and utilities (DATA_RATE_MHZ, DATA_RATE_KHZ)
-/// 2. SoftwareSPIOutput template (generic bit-banging SPI)
-/// 3. Includes all platform-specific implementations via dispatch headers
-///
-/// IMPORTANT: The SPIOutput template is NOT defined in this file.
-/// Instead, it is defined by platform-specific spi_output_template.h files:
-/// - Each platform (esp32, teensy, nrf52, etc.) has its own platform directory
-/// - Each platform directory contains spi_output_template.h
-/// - The dispatch header (platforms/spi_output_template.h) selects the right one
-/// - This approach centralizes platform logic in platform-specific directories
-///
-/// The include pattern is:
-/// #include "fastspi.h"  // Includes this file
-/// // At this point, SoftwareSPIOutput is available
-/// // SPIOutput is defined (by whichever platform-specific template was included)
 
 #ifndef __INC_FASTSPI_H
 #define __INC_FASTSPI_H
 
-// ============================================================================
-// ALL INCLUDES FIRST (before any namespace declarations)
-// This satisfies the namespace-include-order linting requirement
-// ============================================================================
+#include "FastLED.h"
 
 #include "controller.h"
 #include "lib8tion.h"
-#include "fastspi_types.h"
-#include "platforms/shared/spi_bitbang/generic_software_spi.h"  // ok platform headers
-#include "fl/stl/int.h"
-#include "platforms/cpu_frequency.h"
 
-// Include platform-specific SPI device proxy implementations BEFORE FastLED.h
-// These provide the hardware SPI abstractions for each platform
-// This must happen before FastLED.h includes chipsets.h
-#include "platforms/spi_device_proxy.h"
+#include "fastspi_bitbang.h"
 
-// Include platform-specific SPIOutput template implementations BEFORE FastLED.h
-// The dispatch header selects the appropriate SPIOutput for the current platform
-// This must happen BEFORE FastLED.h includes chipsets.h
-#include "platforms/spi_output_template.h"
 
-// NOW include the internal FastLED header, which defines core types without cycles
-// At this point, SPIOutput is already defined for the current platform
-// Note: We use fl/system/fastled.h instead of FastLED.h to avoid cyclic dependencies,
-// since this file is included by FastLED.h
-#include "fl/system/fastled.h"
-
-// ============================================================================
-// DATA RATE MACROS (platform-specific clock calculations)
-// ============================================================================
-//
-// These macros provide platform-specific clock rate calculations for SPI:
-// - Hardware SPI platforms (ESP32, Teensy4, etc.): Return frequency in Hz
-// - Software SPI platforms (AVR, etc.): Return clock divider (CPU cycles per bit)
-//
-// New macros with semantic clarity (recommended):
-//   FL_DATA_RATE_MHZ(X) - Returns either Hz (hardware) or divider (software) depending on platform
-//   FL_DATA_RATE_KHZ(X) - Same as above but for kHz input
-//   FL_TO_CLOCK_DIVIDER(FREQ_MHZ, CPU_FREQ_MHZ) - Explicit clock divider calculation
-//
-// Legacy macros (backwards compatibility):
-//   DATA_RATE_MHZ(X) - Alias for FL_DATA_RATE_MHZ
-//   DATA_RATE_KHZ(X) - Alias for FL_DATA_RATE_KHZ
 
 #if defined(FASTLED_TEENSY3) && (F_CPU > 48000000)
-// Teensy 3.x with overclocking: clock divider based on 48 MHz
-#define FL_DATA_RATE_MHZ(X) (((48000000L / 1000000L) / X))
-#define FL_DATA_RATE_KHZ(X) (((48000000L / 1000L) / X))
-#define FL_TO_CLOCK_DIVIDER(FREQ_MHZ, CPU_FREQ_MHZ) ((CPU_FREQ_MHZ) / (FREQ_MHZ))
-
-#elif defined(FASTLED_TEENSY4) || defined(ESP32) || (defined(ESP8266) && defined(FASTLED_ALL_PINS_HARDWARE_SPI)) || defined(FASTLED_STUB_IMPL)
-// Hardware SPI platforms: return frequency in Hz
-// ESP32 always uses hardware SPI via GPIO matrix (no conditional needed)
-#define FL_DATA_RATE_MHZ(X) (1000000 * (X))
-#define FL_DATA_RATE_KHZ(X) (1000 * (X))
-#define FL_TO_CLOCK_DIVIDER(FREQ_MHZ, CPU_FREQ_MHZ) ((CPU_FREQ_MHZ) / (FREQ_MHZ))
-
+#define DATA_RATE_MHZ(X) (((48000000L / 1000000L) / X))
+#define DATA_RATE_KHZ(X) (((48000000L / 1000L) / X))
+#elif defined(FASTLED_TEENSY4) || (defined(ESP32) && defined(FASTLED_ALL_PINS_HARDWARE_SPI)) || (defined(ESP8266) && defined(FASTLED_ALL_PINS_HARDWARE_SPI) || defined(FASTLED_STUB_IMPL))
+// just use clocks
+#define DATA_RATE_MHZ(X) (1000000 * (X))
+#define DATA_RATE_KHZ(X) (1000 * (X))
 #else
-// Software SPI platforms: return clock divider (CPU cycles per bit)
-// Use FL_CPU_FREQUENCY() for compile-time constant, avoiding issues with
-// STM32duino where F_CPU may be defined as runtime SystemCoreClock variable
-#define FL_DATA_RATE_MHZ(X) ((FL_CPU_FREQUENCY() / 1000000L) / X)
-#define FL_DATA_RATE_KHZ(X) ((FL_CPU_FREQUENCY() / 1000L) / X)
-#define FL_TO_CLOCK_DIVIDER(FREQ_MHZ, CPU_FREQ_MHZ) ((CPU_FREQ_MHZ) / (FREQ_MHZ))
+/// Convert data rate from megahertz (MHz) to clock cycles per bit
+#define DATA_RATE_MHZ(X) ((F_CPU / 1000000L) / X)
+/// Convert data rate from kilohertz (KHz) to clock cycles per bit
+#define DATA_RATE_KHZ(X) ((F_CPU / 1000L) / X)
 #endif
 
-// Backwards compatibility aliases
-#define DATA_RATE_MHZ FL_DATA_RATE_MHZ
-#define DATA_RATE_KHZ FL_DATA_RATE_KHZ
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// External SPI template definition with partial instantiation(s) to map to hardware SPI ports on platforms/builds where the pin
+// mappings are known at compile time.
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// ============================================================================
-// GENERIC SOFTWARE SPI OUTPUT
-// ============================================================================
-// This template provides bit-banging SPI for any platform that supports GPIO
-// It's a fallback for platforms without dedicated hardware SPI support
+FASTLED_NAMESPACE_BEGIN
 
-/// Software SPI output (generic cross-platform bit-banging)
-/// NOTE: This is NOT in the fl namespace per fastspi.h design requirements
-template<fl::u8 _DATA_PIN, fl::u8 _CLOCK_PIN, fl::u32 _SPI_CLOCK_DIVIDER>
-class SoftwareSPIOutput : public fl::GenericSoftwareSPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER> {};
+#if defined(FASTLED_STUB_IMPL)
 
-#endif  // __INC_FASTSPI_H
+
+template<uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER>
+class SPIOutput : public StubSPIOutput {};
+
+
+#else
+
+#if !defined(FASTLED_ALL_PINS_HARDWARE_SPI)
+/// Hardware SPI output
+template<uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER>
+class SPIOutput : public AVRSoftwareSPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER> {};
+#endif
+
+/// Software SPI output
+template<uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER>
+class SoftwareSPIOutput : public AVRSoftwareSPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER> {};
+
+#ifndef FASTLED_FORCE_SOFTWARE_SPI
+
+#if defined(NRF51) && defined(FASTLED_ALL_PINS_HARDWARE_SPI)
+template<uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER>
+class SPIOutput : public NRF51SPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER> {};
+#endif
+
+#if defined(NRF52_SERIES) && defined(FASTLED_ALL_PINS_HARDWARE_SPI)
+template<uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER>
+class SPIOutput : public NRF52SPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER> {};
+#endif
+
+#if defined(FASTLED_APOLLO3) && defined(FASTLED_ALL_PINS_HARDWARE_SPI)
+template<uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER>
+class SPIOutput : public APOLLO3HardwareSPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER> {};
+#endif
+
+#if defined(ESP32) && defined(FASTLED_ALL_PINS_HARDWARE_SPI)
+template<uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER>
+class SPIOutput : public ESP32SPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER> {};
+#endif
+
+#if defined(ESP8266) && defined(FASTLED_ALL_PINS_HARDWARE_SPI)
+template<uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER>
+class SPIOutput : public ESP8266SPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER> {};
+#endif
+
+
+
+
+#if defined(SPI_DATA) && defined(SPI_CLOCK)
+
+#if defined(FASTLED_TEENSY3) && defined(ARM_HARDWARE_SPI)
+
+template<uint32_t SPI_SPEED>
+class SPIOutput<SPI_DATA, SPI_CLOCK, SPI_SPEED> : public ARMHardwareSPIOutput<SPI_DATA, SPI_CLOCK, SPI_SPEED, 0x4002C000> {};
+
+#if defined(SPI2_DATA)
+
+template<uint32_t SPI_SPEED>
+class SPIOutput<SPI2_DATA, SPI2_CLOCK, SPI_SPEED> : public ARMHardwareSPIOutput<SPI2_DATA, SPI2_CLOCK, SPI_SPEED, 0x4002C000> {};
+
+template<uint32_t SPI_SPEED>
+class SPIOutput<SPI_DATA, SPI2_CLOCK, SPI_SPEED> : public ARMHardwareSPIOutput<SPI_DATA, SPI2_CLOCK, SPI_SPEED, 0x4002C000> {};
+
+template<uint32_t SPI_SPEED>
+class SPIOutput<SPI2_DATA, SPI_CLOCK, SPI_SPEED> : public ARMHardwareSPIOutput<SPI2_DATA, SPI_CLOCK, SPI_SPEED, 0x4002C000> {};
+#endif
+
+#elif defined(FASTLED_TEENSY4) && defined(ARM_HARDWARE_SPI)
+
+template<uint32_t SPI_SPEED>
+class SPIOutput<SPI_DATA, SPI_CLOCK, SPI_SPEED> : public Teensy4HardwareSPIOutput<SPI_DATA, SPI_CLOCK, SPI_SPEED, SPI, 0> {};
+
+template<uint32_t SPI_SPEED>
+class SPIOutput<SPI1_DATA, SPI1_CLOCK, SPI_SPEED> : public Teensy4HardwareSPIOutput<SPI1_DATA, SPI1_CLOCK, SPI_SPEED, SPI1, 1> {};
+
+template<uint32_t SPI_SPEED>
+class SPIOutput<SPI2_DATA, SPI2_CLOCK, SPI_SPEED> : public Teensy4HardwareSPIOutput<SPI2_DATA, SPI2_CLOCK, SPI_SPEED, SPI2, 2> {};
+
+#elif defined(FASTLED_TEENSYLC) && defined(ARM_HARDWARE_SPI)
+
+#define DECLARE_SPI0(__DATA,__CLOCK) template<uint32_t SPI_SPEED>\
+ class SPIOutput<__DATA, __CLOCK, SPI_SPEED> : public ARMHardwareSPIOutput<__DATA, __CLOCK, SPI_SPEED, 0x40076000> {};
+ #define DECLARE_SPI1(__DATA,__CLOCK) template<uint32_t SPI_SPEED>\
+  class SPIOutput<__DATA, __CLOCK, SPI_SPEED> : public ARMHardwareSPIOutput<__DATA, __CLOCK, SPI_SPEED, 0x40077000> {};
+
+DECLARE_SPI0(7,13);
+DECLARE_SPI0(8,13);
+DECLARE_SPI0(11,13);
+DECLARE_SPI0(12,13);
+DECLARE_SPI0(7,14);
+DECLARE_SPI0(8,14);
+DECLARE_SPI0(11,14);
+DECLARE_SPI0(12,14);
+DECLARE_SPI1(0,20);
+DECLARE_SPI1(1,20);
+DECLARE_SPI1(21,20);
+
+#elif defined(__SAM3X8E__)
+
+template<uint32_t SPI_SPEED>
+class SPIOutput<SPI_DATA, SPI_CLOCK, SPI_SPEED> : public SAMHardwareSPIOutput<SPI_DATA, SPI_CLOCK, SPI_SPEED> {};
+
+#elif defined(AVR_HARDWARE_SPI)
+
+template<uint32_t SPI_SPEED>
+class SPIOutput<SPI_DATA, SPI_CLOCK, SPI_SPEED> : public AVRHardwareSPIOutput<SPI_DATA, SPI_CLOCK, SPI_SPEED> {};
+
+#if defined(SPI_UART0_DATA)
+
+template<uint32_t SPI_SPEED>
+class SPIOutput<SPI_UART0_DATA, SPI_UART0_CLOCK, SPI_SPEED> : public AVRUSART0SPIOutput<SPI_UART0_DATA, SPI_UART0_CLOCK, SPI_SPEED> {};
+
+#endif
+
+#if defined(SPI_UART1_DATA)
+
+template<uint32_t SPI_SPEED>
+class SPIOutput<SPI_UART1_DATA, SPI_UART1_CLOCK, SPI_SPEED> : public AVRUSART1SPIOutput<SPI_UART1_DATA, SPI_UART1_CLOCK, SPI_SPEED> {};
+
+#endif
+
+#elif defined(ARDUNIO_CORE_SPI)
+
+template<uint32_t SPI_SPEED>
+class SPIOutput<SPI_DATA, SPI_CLOCK, SPI_SPEED> : public ArdunioCoreSPIOutput<SPI_DATA, SPI_CLOCK, SPI_SPEED, SPI> {};
+
+#endif
+
+#else
+#  if !defined(FASTLED_INTERNAL) && !defined(FASTLED_ALL_PINS_HARDWARE_SPI) && !defined(ESP32)
+#    ifdef FASTLED_HAS_PRAGMA_MESSAGE
+#      pragma message "No hardware SPI pins defined.  All SPI access will default to bitbanged output"
+#    else
+#      warning "No hardware SPI pins defined.  All SPI access will default to bitbanged output"
+#    endif
+#  endif
+#endif
+
+// #if defined(USART_DATA) && defined(USART_CLOCK)
+// template<uint32_t SPI_SPEED>
+// class AVRSPIOutput<USART_DATA, USART_CLOCK, SPI_SPEED> : public AVRUSARTSPIOutput<USART_DATA, USART_CLOCK, SPI_SPEED> {};
+// #endif
+
+#else
+#  if !defined(FASTLED_INTERNAL) && !defined(FASTLED_ALL_PINS_HARDWARE_SPI)
+#    ifdef FASTLED_HAS_PRAGMA_MESSAGE
+#      pragma message "Forcing software SPI - no hardware SPI for you!"
+#    else
+#      warning "Forcing software SPI - no hardware SPI for you!"
+#    endif
+#  endif
+#endif
+
+#endif  // !defined(FASTLED_STUB_IMPL)
+
+FASTLED_NAMESPACE_END
+
+#endif

@@ -1,29 +1,24 @@
-// @filter: (memory is large)
-
 /// @file    Overclock.ino
-/// @brief   High performance LED display example
-/// @example Overclock.ino
-///
-/// This sketch is fully compatible with the FastLED web compiler. To use it do the following:
-/// 1. Install Fastled: `pip install fastled`
-/// 2. cd into this examples page.
-/// 3. Run the FastLED web compiler at root: `fastled`
-/// 4. When the compiler is done a web page will open.
-
 /// @brief   Demonstrates how to overclock a FastLED setup
 
-// FASTLED_OVERCLOCK must be defined BEFORE including FastLED.h so the value
-// reaches led_timing.h's `#ifndef` guard. Defining it after include causes a
-// -Wmacro-redefined warning on every CI build. (#2728)
+
+#ifdef __AVR__
+// To effectively test the overclock feature we need
+// a large enough dataset to test against. Unfortunately
+// the avr platforms don't have enough memory so this example
+// is disabled for these platforms
+void setup() {}
+void loop() {}
+#else
+
+
 #define FASTLED_OVERCLOCK 1.1 // Overclocks by 10%, I've seen 25% work fine.
-#define FASTLED_OVERCLOCK_SUPPRESS_WARNING 1
 
-#include "FastLED.h"
+#include "fx/2d/noisepalette.h"
+#include "fx/fx.h"
+#include <FastLED.h>
 
-#include "fl/fx/2d/noisepalette.h"
-#include "fl/fx/fx.h"
-
-
+using namespace fl;
 
 #define LED_PIN 3
 #define BRIGHTNESS 96
@@ -45,7 +40,7 @@
 // if this example code seems daunting.
 //
 //
-// The basic setup here is that for each frame, we generate a new fl::array of
+// The basic setup here is that for each frame, we generate a new array of
 // 'noise' data, and then map it onto the LED matrix through a color palette.
 //
 // Periodically, the color palette is changed, and new noise-generation
@@ -73,9 +68,9 @@
 // like water.
 #define SPEED 30
 
-fl::CRGB leds[NUM_LEDS];
-fl::XYMap xyMap(MATRIX_WIDTH, MATRIX_HEIGHT, GRID_SERPENTINE);
-fl::NoisePalette noisePalette(xyMap);
+CRGB leds[NUM_LEDS];
+XYMap xyMap(MATRIX_WIDTH, MATRIX_HEIGHT, GRID_SERPENTINE);
+NoisePalette noisePalette(xyMap);
 
 
 void setup() {
@@ -89,6 +84,8 @@ void setup() {
 
 void loop() {
     EVERY_N_MILLISECONDS(5000) { noisePalette.changeToRandomPalette(); }
-    noisePalette.draw(fl::Fx::DrawContext(fl::millis(), leds));
+    noisePalette.draw(Fx::DrawContext(millis(), leds));
     FastLED.show();
 }
+
+#endif

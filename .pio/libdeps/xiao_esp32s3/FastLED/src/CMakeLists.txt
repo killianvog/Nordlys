@@ -17,7 +17,7 @@ else()
     message(STATUS "CMAKE_CXX_STANDARD already defined as: ${CMAKE_CXX_STANDARD}")
 endif()
 
-# Retrieve and print the flags passed from the parent build system
+# Retrieve and print the flags passed from the parent (e.g. tests/CMakeLists.txt)
 message(STATUS "Using compile flags from parent CMakeLists.txt")
 message(STATUS "COMMON_COMPILE_FLAGS: ${COMMON_COMPILE_FLAGS}")
 message(STATUS "COMMON_COMPILE_DEFINITIONS: ${COMMON_COMPILE_DEFINITIONS}")
@@ -30,7 +30,7 @@ endif()
 # Include FastLED headers (assumed to be in this directory)
 include_directories(${FASTLED_SOURCE_DIR})
 
-# === Get all the source files ===
+# === Step 1: Get all the source files ===
 file(GLOB_RECURSE FASTLED_SOURCES "${FASTLED_SOURCE_DIR}/*.c*")
 message(STATUS "Found source files: ${FASTLED_SOURCES}")
 
@@ -43,69 +43,83 @@ list(FILTER FASTLED_SOURCES EXCLUDE REGEX ".*esp.*")
 list(FILTER FASTLED_SOURCES EXCLUDE REGEX ".*arm.*")
 list(FILTER FASTLED_SOURCES EXCLUDE REGEX ".*avr.*")
 
+
 # -----------------------------------------------------------------------------
-# Create the main FastLED library from sources
+# Partition helper: create object libraries and add their names to a global list
 # -----------------------------------------------------------------------------
 
-add_library(fastled STATIC ${FASTLED_SOURCES})
+# Initialize a global list to store the names of the created object libraries.
+set(FASTLED_OBJECT_LIBS "")
 
-# Apply FastLED library-specific compile flags and definitions
-# Note: We apply library-specific flags that disable exceptions/RTTI for embedded compatibility
-target_compile_options(fastled PRIVATE 
-    # Core warning flags
-    -Wall
-    -funwind-tables
-    $<$<CONFIG:Debug>:-g>
-    $<$<CONFIG:Release>:-O2>
-    # FastLED embedded requirements: disable exceptions and RTTI
-    -fno-exceptions              # Disable C++ exceptions (embedded requirement)
-    -fno-rtti                    # Disable runtime type info (embedded requirement)
-    # Dead code elimination
-    -ffunction-sections
-    -fdata-sections
-    # Essential warnings
-    -Werror=return-type
-    -Werror=missing-declarations
-    -Werror=uninitialized
-    -Werror=array-bounds
-    -Werror=null-dereference
-    -Werror=deprecated-declarations
-    -Wno-comment
-)
+# Using a macro (instead of a function) ensures we are in the global scope.
+macro(add_partitioned_library lib_name source_regex)
+    set(matched_sources "")
+    foreach(source IN LISTS FASTLED_SOURCES)
+        if(source MATCHES "${source_regex}")
+            list(APPEND matched_sources "${source}")
+        endif()
+    endforeach()
 
-# Add GCC-specific flags for FastLED library
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(fastled PRIVATE 
-        -Werror=maybe-uninitialized
-    )
+    if(matched_sources)
+        # Remove the matched sources from the global list so they won't be processed again.
+        foreach(source IN LISTS matched_sources)
+            list(REMOVE_ITEM FASTLED_SOURCES "${source}")
+        endforeach()
+
+        # Create an object library from the matched sources.
+        add_library(${lib_name} OBJECT ${matched_sources})
+        target_compile_options(${lib_name} PRIVATE ${COMMON_COMPILE_FLAGS})
+        target_compile_definitions(${lib_name} PRIVATE ${COMMON_COMPILE_DEFINITIONS})
+        message(STATUS "Created ${lib_name} with sources: ${matched_sources}")
+
+        # Append the library name to the global list.
+        list(APPEND FASTLED_OBJECT_LIBS ${lib_name})
+    else()
+        message(WARNING "No sources found for library ${lib_name} using filter: ${source_regex}")
+    endif()
+endmacro()
+
+
+# -----------------------------------------------------------------------------
+# Step 2: Partition the sources into libraries with one-line calls.
+# -----------------------------------------------------------------------------
+
+# Partition some of the sources into separate object libraries, removing them from the global list FASTLED_SOURCES.
+add_partitioned_library(FastLED_fx          ".*/fx/")
+add_partitioned_library(FastLED_platforms   ".*/platforms/")
+# Uncomment the next line if you wish to partition lib8tion sources:
+# add_partitioned_library(fastled8tion ".*/lib8tion/")
+add_partitioned_library(FastLED_fl          ".*/fl/")
+add_partitioned_library(FastLED_sensors     ".*/sensors/")
+add_partitioned_library(FastLED_third_party ".*/third_party/")
+# Anything else will be considered the "core" library
+
+# The remaining files become the "core" library.
+if(FASTLED_SOURCES)
+    add_library(FastLED_core OBJECT ${FASTLED_SOURCES})
+    target_compile_options(FastLED_core PRIVATE ${COMMON_COMPILE_FLAGS})
+    target_compile_definitions(FastLED_core PRIVATE ${COMMON_COMPILE_DEFINITIONS})
+    list(APPEND FASTLED_OBJECT_LIBS FastLED_core)
+else()
+    message(FATAL_ERROR "Error: FastLED_core has no sources! This should not happen.")
 endif()
 
-# Add C++ specific flags for FastLED library
-target_compile_options(fastled PRIVATE $<$<COMPILE_LANGUAGE:CXX>:
-    -Werror=suggest-override
-    -Werror=non-virtual-dtor
-    -Werror=switch-enum
-    -Werror=delete-non-virtual-dtor
->)
 
-# Apply FastLED library-specific definitions
-target_compile_definitions(fastled PRIVATE 
-    FASTLED_FORCE_NAMESPACE=1
-    FASTLED_NO_AUTO_NAMESPACE
-    FASTLED_STUB_IMPL
-    FASTLED_NO_PINMAP
-    HAS_HARDWARE_PIN_SUPPORT
-    PROGMEM=
-    FASTLED_FIVE_BIT_HD_GAMMA_FUNCTION_2_8
-)
+# -----------------------------------------------------------------------------
+# Create the main FastLED library by aggregating all object libraries.
+# -----------------------------------------------------------------------------
 
-# Ensure full archive linking: force inclusion of all object files
+add_library(fastled STATIC)
+
+# Loop over the global list of object libraries and add their object files.
+foreach(obj_lib IN LISTS FASTLED_OBJECT_LIBS)
+    target_sources(fastled PRIVATE $<TARGET_OBJECTS:${obj_lib}>)
+endforeach()
+
+# Forward the compile flags and definitions from the parent.
+target_compile_options(fastled PRIVATE ${COMMON_COMPILE_FLAGS})
+target_compile_definitions(fastled PRIVATE ${COMMON_COMPILE_DEFINITIONS})
+
+# Ensure full archive linking: force inclusion of all object files.
 target_link_options(fastled PRIVATE "-Wl,--whole-archive" "-Wl,--no-whole-archive")
 
-# Add Windows debugging libraries for crash handler
-if(WIN32)
-    target_link_libraries(fastled dbghelp psapi)
-endif()
-
-list(LENGTH FASTLED_SOURCES FASTLED_SOURCE_COUNT)
-message(STATUS "Created fastled library with ${FASTLED_SOURCE_COUNT} source files")

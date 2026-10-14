@@ -5,23 +5,21 @@
 cmake_minimum_required(VERSION 3.5)
 
 # Collect all source files
-file(GLOB_RECURSE FastLED_SRCS "src/*.cpp")
+file(GLOB FastLED_SRCS "src/*.cpp")
+file(GLOB FastLED_FL_SRCS "src/fl/*.cpp")
+file(GLOB FastLED_SENSORS_SRCS "src/sensors/*.cpp")
+file(GLOB FastLED_FX_SRCS "src/fx/*.cpp" "src/fx/**/*.cpp")
 
-set(FASTLED_REQUIRES arduino-esp32 esp_driver_i2s esp_driver_mcpwm esp_driver_rmt
-                      esp_http_server esp_lcd driver esp_mm esp_wifi esp_netif
-                      app_update esp_timer)
+file(GLOB ESP32_SRCS "src/platforms/esp/32/*.cpp" "src/platforms/esp/32/rmt_5/*.cpp")
+file(GLOB ESP32_THIRD_PARTY_SRCS "src/third_party/**/src/*.c" "src/third_party/**/src/*.cpp")
+file(GLOB ESP32_LED_STRIP_SRCS "src/third_party/espressif/led_strip/src/*.c")
 
-# esp_rom is a standalone component only from IDF 4.x onward (esp_rom_sys.h /
-# esp_rom_delay_us). On IDF 3.x, platform_time_esp32.cpp.hpp instead uses
-# rom/ets_sys.h (ets_delay_us), which ships as part of the legacy target
-# component and has no separate REQUIRES entry.
-if(NOT DEFINED IDF_VERSION_MAJOR OR IDF_VERSION_MAJOR GREATER_EQUAL 4)
-    list(APPEND FASTLED_REQUIRES esp_rom)
-endif()
+# Combine all source files into a single list
+list(APPEND FastLED_SRCS ${FastLED_FL_SRCS} ${FastLED_SENSORS_SRCS} ${FastLED_FX_SRCS} ${ESP32_SRCS} ${ESP32_THIRD_PARTY_SRCS} ${ESP32_LED_STRIP_SRCS})
 
 # Register the component with ESP-IDF
 idf_component_register(SRCS ${FastLED_SRCS}
-                       INCLUDE_DIRS "src"
-                       REQUIRES ${FASTLED_REQUIRES})
+                       INCLUDE_DIRS "src" "src/third_party/espressif/led_strip/src"
+                       REQUIRES arduino-esp32 esp_driver_rmt driver)
 
 project(FastLED)

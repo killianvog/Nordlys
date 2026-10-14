@@ -30,9 +30,7 @@
     THE SOFTWARE.
 */
 
-#include "platforms/arm/teensy/is_teensy.h"
-
-#ifndef FL_IS_TEENSY_4X
+#ifndef __IMXRT1062__
 #error "Sorry, ObjectFLED only works on Teensy 4.x boards."
 #endif
 #if TEENSYDUINO < 121
@@ -42,9 +40,6 @@
 #define ObjectFLED_h
 #include <WProgram.h>
 #include "DMAChannel.h"
-#include "ObjectFLEDDmaManager.h"
-
-#include "fl/stl/stdint.h"
 
 //Experimentally found DSE=3, SPEED=0 gave best LED overclocking
 //boot defaults DSE=6, SPEED=2.
@@ -58,25 +53,7 @@
 // smaller than the half the Cortex-M7 data cache.
 //bitdata[B_P_D * 64]		buffer holds data (10KB) for 80 LED bytes: 4DW * 8b = 32DW/LEDB = 96DW/LED
 //framebuffer_index = B_P_D * 2 = pointer to next block for transfer (80 LEDB / bitdata buffer)
-// Doubled from 60 to 120 to lengthen the eDMA major loop on dma2 (the
-// chunked half-buffer used for ESG-chained refill). With BYTES_PER_DMA=60
-// the ISR had only ~1.25 us between dma2's ESG reload and the next TMR4
-// trigger, but the ISR's memset + fillbits + dcache_flush takes ~10 us
-// on Cortex-M7 @ 600 MHz -- so dma2next was reading a partially-refilled
-// chunk on the first ~10 us of each new chunk. That race is the most
-// plausible mechanism behind the residual mid-byte 0->1 phantom bit flips
-// reported in #3406 (statistical analysis shows errors cluster at the
-// 20-LED chunk boundaries that BYTES_PER_DMA=60 produces). 120 doubles
-// the inter-ISR margin with the same memset overhead, +15 KB DMAMEM cost.
-// BYTES_PER_DMA is defined in ObjectFLEDDmaManager.h to keep a single
-// source of truth (CodeRabbit-flagged on PR #3419 -- previously this
-// header also had a #ifndef guard with default 120, while
-// ObjectFLEDDmaManager.h had 150, creating an include-order-dependent
-// ODR hazard between the bitdata[] array size and any consumer that
-// arithmetic-references BYTES_PER_DMA). The definition itself now
-// lives in ObjectFLEDDmaManager.h next to the static_assert and the
-// bitdata buffer that depends on it.
-#include "ObjectFLEDDmaManager.h"
+#define BYTES_PER_DMA	20		//= number of pairs of LEDB (40=80B) bitmasks in bitdata.
 
 #define CORDER_RGB	0	//* WS2811, YF923
 #define CORDER_RBG	1
@@ -115,12 +92,6 @@ namespace fl {
 //Usage: ObjectFLED myCube ( Num_LEDs, *drawBuffer, LED_type, numPins, *pinList, serpentineNumber )
 class ObjectFLED {
 public:
-	// Teensy 4.x hardware ownership:
-	// ObjectFLED owns QTimer4 channels 0-2, XBAR1 DMA request outputs 30/31/94,
-	// the corresponding DMAMUX requests, its allocated DMA channels, and the
-	// selected pins' standard GPIO aliases while an instance is active. It does
-	// not restore prior owners for those resources; conflicting peripherals must
-	// be treated as unsupported while ObjectFLED is in use.
 	// Usage: ObjectFLED myCube ( Num_LEDs, *drawBuffer, LED_type, numPins, *pinList, serpentineNumber )
 	// Example:
     // byte pinList[NUM_CHANNELS] = {1, 8, 14, 17, 24, 29, 20, 0, 15, 16, 18, 19, 21, 22, 23, 25};
@@ -139,45 +110,32 @@ public:
 	ObjectFLED(uint16_t numLEDs, void* drawBuf, uint8_t config, uint8_t numPins, const uint8_t* pinList, \
 				uint8_t serpentine = 0);
 
-	~ObjectFLED();
-
-	/// Template-based begin method - extracts timing from TIMING struct at compile-time
-	/// This is the preferred method for FastLED integration
-	/// @tparam TIMING The timing struct (e.g., TIMING_WS2812_800KHZ, TIMING_SK6812)
-	/// @param latch_delay_us Optional LED latch delay in microseconds (uses TIMING::RESET if not specified)
-	template <typename TIMING>
-	void begin(uint16_t latch_delay_us = TIMING::RESET) {
-		// Extract T1, T2, T3 directly from TIMING struct
-		// T1 = high time for '0' bit
-		// T2 = additional high time for '1' bit
-		// T3 = low tail duration
-		begin(TIMING::T1, TIMING::T2, TIMING::T3, latch_delay_us);
+	~ObjectFLED() { 
+		// Wait for prior xmission to end, don't need to wait for latch time before deleting buffer
+		while (micros() - update_begin_micros < numbytes * 8 * TH_TL / OC_FACTOR / 1000 + 5);
+		delete frameBuffer; 
 	}
 
-	/// Three-phase timing begin method (T1, T2, T3 format)
-	/// This method converts 3-phase timing to ObjectFLED's internal format
-	/// @param t1 High time for '0' bit (nanoseconds)
-	/// @param t2 Additional high time for '1' bit (nanoseconds)
-	/// @param t3 Low tail duration (nanoseconds)
-	/// @param latch_delay_us LED latch delay in microseconds
-	void begin(uint16_t t1, uint16_t t2, uint16_t t3, uint16_t latch_delay_us = 300);
-
-private:
 	//begin() - Use defalut LED timing: 1.0 OC Factor, 1250 nS CLK (=800 KHz), 300 nS T0H, 750 nS T1H, 300 uS LED Latch Delay.
 	void begin(void);
 
 	//begin(LED_Latch_Delay_uS) - sets the LED Latch Delay.
 	void begin(uint16_t);
 
-	//beginInternal(LED_CLK_nS, LED_T0H_nS, LED_T1H_nS, LED_Latch_Delay_uS) - specifies full LED waveform timing.
-	void beginInternal(uint16_t, uint16_t, uint16_t, uint16_t = 300);
+	//begin(LED_Overclock_Factor, LED_Latch_Delay_uS) - divides default 1250 nS LED CLK (=800 KHz), 
+	// 300 nS T0H, 750 nS T1H; and optionally sets the LED Latch Delay.
+	void begin(double, uint16_t = 300);
 
-public:
+	//begin(LED_CLK_nS, LED_T0H_nS, LED_T1H_nS, LED_Latch_Delay_uS) - specifies full LED waveform timing.
+	void begin(uint16_t, uint16_t, uint16_t, uint16_t = 300);
 
 	void show(void);
-	void showRawFrameBuffer(void);
-	void waitForDmaToFinish();
-
+	void waitForDmaToFinish() {
+		while (!dma3.complete()) {  // wait for dma to complete before reset/re-use
+			delayMicroseconds(10);
+		}
+	}
+	
 	int busy(void);
 
 	//Brightness values 0-255
@@ -186,18 +144,24 @@ public:
 	//Color Balance is 3-byte number in RGB order.  Each byte is a brightness value for that color.
 	void setBalance(uint32_t);
 
-	uint8_t getBrightness();
+	uint8_t getBrightness() { return brightness; }
 
-	uint32_t getBalance();
-
-	// Frame buffer for direct pixel access (used by FastLED integration)
-	uint8_t* frameBufferLocal;
+	uint32_t getBalance() { return colorBalance; }
 
 private:
 	static void isr(void);
 
 	void genFrameBuffer(uint32_t);
-	void showInternal(bool regenerateFrameBuffer);
+
+	static uint8_t* frameBuffer;					//isr()
+	static uint32_t numbytes;						//isr()
+	static uint8_t numpins;							//isr()
+	static uint8_t pin_bitnum[NUM_DIGITAL_PINS];	//isr()
+	static uint8_t pin_offset[NUM_DIGITAL_PINS];	//isr()
+	DMAMEM static uint32_t bitdata[BYTES_PER_DMA * 64] __attribute__((used, aligned(32)));	//isr()
+	DMAMEM static uint32_t bitmask[4] __attribute__((used, aligned(32)));
+	static DMAChannel dma1, dma2, dma3;
+	static DMASetting dma2next;
 
 	uint32_t update_begin_micros = 0;
 	uint8_t brightness = 255;
@@ -205,34 +169,25 @@ private:
 	uint32_t rLevel = 65025;
 	uint32_t gLevel = 65025;
 	uint32_t bLevel = 65025;
-public:
 	void* drawBuffer;
-private:
 	uint16_t stripLen;
 	uint8_t params;
 	uint8_t pinlist[NUM_DIGITAL_PINS];
 	uint16_t comp1load[3];
 	uint8_t serpNumber;
+	float OC_FACTOR = 1.0;			//used to reduce period of LED output
 	uint16_t TH_TL = 1250;			//nS- period of LED output
 	uint16_t T0H = 300;				//nS- duration of T0H
 	uint16_t T1H = 750;				//nS- duration of T1H
 	uint16_t LATCH_DELAY = 300;		//uS time to hold output low for LED latch.
 
 	//for show context switch
-	// Force 32-byte alignment so arm_dcache_flush_delete in begin() operates
-	// on a whole cache line. Without alignment the 16-byte flush is unsafe
-	// per Cortex-M7 cache maintenance semantics (#3406).
-	// #3416 OF-MED-1: bitmaskLocal is 16 bytes (alignas 32 = its own line
-	// start) but the adjacent numpinsLocal/numbytesLocal share the second
-	// half of the same 32-byte cache line. Padding to a full 32 bytes
-	// guarantees the flush_delete invalidates only data this driver owns
-	// and never an adjacent instance's fields.
-	alignas(32) uint32_t bitmaskLocal[8];  // 4 valid words + 4 pad
+	uint32_t bitmaskLocal[4];
 	uint8_t numpinsLocal;
+	uint8_t* frameBufferLocal;
 	uint32_t numbytesLocal;
 	uint8_t pin_bitnumLocal[NUM_DIGITAL_PINS];
 	uint8_t pin_offsetLocal[NUM_DIGITAL_PINS];
-	bool initialized = false;
 };	// class ObjectFLED
 
 

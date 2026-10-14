@@ -28,12 +28,15 @@ community include:
 
 Examples of unacceptable behavior include:
 
-  1. The use of sexualized language or imagery, and sexual attention or advances of any kind.
-  2. Trolling, insulting or derogatory comments, and personal or political attacks
-  3. Public or private harassment
-  4. Publishing others' private information, such as a physical or email address, without their explicit permission
-  5. Other conduct which could reasonably be considered inappropriate in a professional setting
-  6. "Trolling" and excessive complaints without the due benefit of contributing code.
+* The use of sexualized language or imagery, and sexual attention or
+  advances of any kind
+* Trolling, insulting or derogatory comments, and personal or political attacks
+* Public or private harassment
+* Publishing others' private information, such as a physical or email
+  address, without their explicit permission
+* Other conduct which could reasonably be considered inappropriate in a
+  professional setting
+* "Trolling" and excessive complaints without the due benefit of contributing code.
 
 ## Enforcement Responsibilities
 

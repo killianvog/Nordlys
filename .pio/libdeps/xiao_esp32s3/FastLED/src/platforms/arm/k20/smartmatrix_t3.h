@@ -1,14 +1,12 @@
-// IWYU pragma: private
-
 #ifndef __INC_SMARTMATRIX_T3_H
 #define __INC_SMARTMATRIX_T3_H
 
 #ifdef SmartMatrix_h
-// IWYU pragma: begin_keep
 #include <SmartMatrix.h>
-#include "fl/stl/noexcept.h"
-// IWYU pragma: end_keep
-namespace fl {
+#include "fl/namespace.h"
+
+FASTLED_NAMESPACE_BEGIN
+
 extern SmartMatrix *pSmartMatrix;
 
 // note - dmx simple must be included before FastSPI for this code to be enabled
@@ -17,7 +15,7 @@ class CSmartMatrixController : public CPixelLEDController<RGB_ORDER> {
 
 public:
     // initialize the LED controller
-    virtual void init() FL_NO_EXCEPT {
+    virtual void init() {
         // Initialize 32x32 LED Matrix
         matrix.begin();
         matrix.setBrightness(255);
@@ -29,7 +27,7 @@ public:
         pSmartMatrix = &matrix;
     }
 
-    virtual void showPixels(PixelController<RGB_ORDER> & pixels) FL_NO_EXCEPT {
+    virtual void showPixels(PixelController<RGB_ORDER> & pixels) {
         if(SMART_MATRIX_CAN_TRIPLE_BUFFER) {
             rgb24 *md = matrix.getRealBackBuffer();
         } else {
@@ -49,7 +47,9 @@ public:
         }
     }
 };
-}  // namespace fl
+
+FASTLED_NAMESPACE_END
+
 #endif
 
 #endif

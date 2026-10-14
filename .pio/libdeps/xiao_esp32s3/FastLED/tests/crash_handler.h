@@ -1,50 +1,49 @@
 #ifndef CRASH_HANDLER_H
 #define CRASH_HANDLER_H
 
-#include "fl/stl/has_include.h"  // IWYU pragma: keep
+#include <csignal>
+#include <cstdio>
+#include <cstdlib>
+#include <execinfo.h>
+#include <unistd.h>
+#include <libunwind.h>
 
-// Phase 1: Include the appropriate implementation at the top (before namespace declarations)
-#ifdef _WIN32
-    #include "crash_handler_win.h"
-#elif defined(USE_LIBUNWIND)
-    #include "crash_handler_libunwind.h"
-#elif FL_HAS_INCLUDE(<execinfo.h>)
-    #define USE_EXECINFO 1
-    #include "crash_handler_execinfo.h"
-#else
-    #include "crash_handler_noop.h"
-#endif
+void print_stacktrace() {
+    unw_cursor_t cursor;
+    unw_context_t context;
 
-// Phase 2: Create namespace alias
-#ifdef _WIN32
-    namespace impl = crash_handler_win;
-#elif defined(USE_LIBUNWIND)
-    namespace impl = crash_handler_libunwind;
-#elif FL_HAS_INCLUDE(<execinfo.h>)
-    namespace impl = crash_handler_execinfo;
-#else
-    namespace impl = crash_handler_noop;
-#endif
+    unw_getcontext(&context);
+    unw_init_local(&cursor, &context);
 
-// Unified interface - these functions will dispatch to the appropriate implementation
-inline void crash_handler(int sig) {
-    impl::crash_handler(sig);
+    int depth = 0;
+    while (unw_step(&cursor) > 0) {
+        unw_word_t offset, pc;
+        char sym[256];
+
+        unw_get_reg(&cursor, UNW_REG_IP, &pc);
+        if (pc == 0) {
+            break;
+        }
+
+        printf("#%-2d 0x%lx:", depth++, pc);
+
+        if (unw_get_proc_name(&cursor, sym, sizeof(sym), &offset) == 0) {
+            printf(" (%s+0x%lx)\n", sym, offset);
+        } else {
+            printf(" -- symbol not found\n");
+        }
+    }
 }
 
-inline void print_stacktrace() {
-    impl::print_stacktrace();
+void crash_handler(int sig) {
+    fprintf(stderr, "Error: signal %d:\n", sig);
+    print_stacktrace();
+    exit(1);
 }
 
-inline void setup_crash_handler() {
-    impl::setup_crash_handler();
+void setup_crash_handler() {
+    signal(SIGSEGV, crash_handler);
+    signal(SIGABRT, crash_handler);
 }
-
-// Walk the stack of a specific suspended thread (Windows only).
-// On other platforms, use print_stacktrace() from within the target thread.
-#ifdef _WIN32
-inline void print_stacktrace_for_thread(void* thread_handle) {
-    impl::print_stacktrace_for_thread((HANDLE)thread_handle);
-}
-#endif
 
 #endif // CRASH_HANDLER_H

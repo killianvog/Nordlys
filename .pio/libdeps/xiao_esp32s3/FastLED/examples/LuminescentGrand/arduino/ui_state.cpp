@@ -1,27 +1,20 @@
 
 
+#include "../shared/defs.h"
+
+
+#if ENABLE_SKETCH
+
+
 #include "./ui_state.h"
 #include "shared/Painter.h"
-#include "fl/log/log.h"
-#include "fl/stl/compiler_control.h"
+#include "fl/dbg.h"
 
 #include <Arduino.h>
 
 //#define UI_V1  // Based off the old midi shield with hand assmebled buttons.
 #define UI_V2  // Based on a new midi shield with buttons. https://learn.sparkfun.com/tutorials/midi-shield-hookup-guide
 #define UI_DBG
-
-
-// Silent fallback: many Arduino-core variants (ESP32, RP2040, nRF52, …) do
-// not expose `A3` / `A4` aliases. Previously this emitted a `#warning` that
-// fired on every board build (-Wcpp / hundreds of lines per CI run). The
-// fallback is harmless — we only use these macros as opaque pin numbers. #2728
-#ifndef A3
-#define A3 3
-#endif
-#ifndef A4
-#define A4 4
-#endif
 
 #ifdef __STM32F1__
 // Missing A-type pins, just use digital pins mapped to analog.
@@ -56,13 +49,11 @@ void ui_init() {
 
 
 ui_state ui_update(uint32_t now_ms, uint32_t delta_ms) {
-  FL_UNUSED(delta_ms);
-  
   ui_state out;
   vis_selector.Update(now_ms);
   color_selector.Update();
   int32_t curr_val = vis_selector.curr_val();
-  FL_DBG("curr_val: " << curr_val);
+  FASTLED_DBG("curr_val: " << curr_val);
 
   out.color_scheme = color_selector.curr_val();
 
@@ -88,3 +79,6 @@ ui_state ui_update(uint32_t now_ms, uint32_t delta_ms) {
   out.which_visualizer = static_cast<Painter::VisState>(curr_val % Painter::kNumVisStates);
   return out;
 }
+
+
+#endif  // ENABLE_SKETCH

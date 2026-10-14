@@ -8,16 +8,15 @@
 // Animated, ever-changing rainbows.
 // by Mark Kriegsman
 
+#if FASTLED_VERSION < 3001000
+#error "Requires FastLED 3.1 or later; check github for latest code."
+#endif
+
 #define DATA_PIN    3
 //#define CLK_PIN   4
 #define LED_TYPE    WS2811
 #define COLOR_ORDER GRB
-#if FL_PLATFORM_HAS_TINY_MEMORY
-// Keep the rainbow buffer usable on 512 B SRAM parts.
-#define NUM_LEDS 32
-#else
-#define NUM_LEDS 200
-#endif
+#define NUM_LEDS    200
 #define BRIGHTNESS  255
 
 CRGB leds[NUM_LEDS];
@@ -35,7 +34,6 @@ void setup() {
   FastLED.setBrightness(BRIGHTNESS);
 }
 
-void pride();
 
 void loop()
 {

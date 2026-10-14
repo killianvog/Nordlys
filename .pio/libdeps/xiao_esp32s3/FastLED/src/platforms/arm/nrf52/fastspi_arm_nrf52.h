@@ -1,27 +1,12 @@
-// IWYU pragma: private
-
 #ifndef __FASTSPI_ARM_NRF52_H
 #define __FASTSPI_ARM_NRF52_H
-
-#include "fl/stl/compiler_control.h"
-#include "fl/stl/static_assert.h"
-#include "fl/system/fastpin_base.h"
-#include "fastspi_types.h"
-#include "fl/gfx/eorder.h"
-#include "fl/system/delay.h"
-// IWYU pragma: begin_keep
-#include <nrf_spim.h>
-#include "fl/stl/noexcept.h"
-// IWYU pragma: end_keep
-
-namespace fl {
 
 
 #ifndef FASTLED_FORCE_SOFTWARE_SPI
 
-    #ifndef FASTLED_ALL_PINS_HARDWARE_SPI
-        #define FASTLED_ALL_PINS_HARDWARE_SPI
-    #endif
+    #include <nrf_spim.h>
+
+    #define FASTLED_ALL_PINS_HARDWARE_SPI
 
 
     // NRF52810 has SPIM0: Frequencies from 125kbps to 8Mbps
@@ -36,8 +21,8 @@ namespace fl {
      */
 
     /// SPI_CLOCK_DIVIDER is number of CPU clock cycles per SPI transmission bit?
-    template <u8 _DATA_PIN, u8 _CLOCK_PIN, u32 _SPI_CLOCK_DIVIDER>
-    class NRF52HardwareSPIOutput {
+    template <uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER>
+    class NRF52SPIOutput {
     private:
         // static variables -- always using same SPIM instance
         static bool s_InUse;
@@ -56,52 +41,33 @@ namespace fl {
         //         avoid use of single-transaction writeBytes()
         //         as cannot control where that memory lies....
         */
-        static u8  s_BufferIndex;
-        static u8  s_Buffer[2][2]; // 2x two-byte buffers, allows one buffer currently being sent, and a second one being prepped to send.
-
-        static constexpr u32 spiClockHz() FL_NO_EXCEPT {
-            constexpr u32 divider = (_SPI_CLOCK_DIVIDER == 0) ? 1 : _SPI_CLOCK_DIVIDER;
-            return F_CPU / divider;
-        }
-
-        static constexpr nrf_spim_frequency_t spimFrequency() FL_NO_EXCEPT {
-            constexpr u32 hz = spiClockHz();
-
-            // nRF52 SPIM supports discrete frequencies. Select the fastest
-            // standard rate that does not exceed the requested FastLED rate.
-            return (hz >= 8000000UL)  ? NRF_SPIM_FREQ_8M :
-                   (hz >= 4000000UL)  ? NRF_SPIM_FREQ_4M :
-                   (hz >= 2000000UL)  ? NRF_SPIM_FREQ_2M :
-                   (hz >= 1000000UL)  ? NRF_SPIM_FREQ_1M :
-                   (hz >= 500000UL)   ? NRF_SPIM_FREQ_500K :
-                   (hz >= 250000UL)   ? NRF_SPIM_FREQ_250K :
-                                        NRF_SPIM_FREQ_125K;
-        }
+        static uint8_t  s_BufferIndex;
+        static uint8_t  s_Buffer[2][2]; // 2x two-byte buffers, allows one buffer currently being sent, and a second one being prepped to send.
 
         // This allows saving the configuration of the SPIM instance
         // upon select(), and restoring the configuration upon release().
         struct spim_config {
-            u32 inten;
-            u32 shorts;
-            u32 sck_pin;
-            u32 mosi_pin;
-            u32 miso_pin;
-            u32 frequency;
+            uint32_t inten;
+            uint32_t shorts;
+            uint32_t sck_pin;
+            uint32_t mosi_pin;
+            uint32_t miso_pin;
+            uint32_t frequency;
             // data pointers, RX/TX counts not saved as would only hide bugs
-            u32 config; // mode & bit order
-            u32 orc;
+            uint32_t config; // mode & bit order
+            uint32_t orc;
 
 #if false // additional configuration to save/restore for SPIM3
-            u32 csn_pin;
-            u32 csn_polarity; // CSNPOL
-            u32 csn_duration; // IFTIMING.CSNDUR
-            u32 rx_delay;     // IFTIMING.RXDELAY
-            u32 dcx_pin;      // PSELDCX
-            u32 dcx_config;   // DCXCNT
+            uint32_t csn_pin;
+            uint32_t csn_polarity; // CSNPOL
+            uint32_t csn_duration; // IFTIMING.CSNDUR
+            uint32_t rx_delay;     // IFTIMING.RXDELAY
+            uint32_t dcx_pin;      // PSELDCX
+            uint32_t dcx_config;   // DCXCNT
 #endif
 
         } m_SpiSavedConfig;
-        void saveSpimConfig() FL_NO_EXCEPT {
+        void saveSpimConfig() {
             m_SpiSavedConfig.inten          = FASTLED_NRF52_SPIM->INTENSET;
             m_SpiSavedConfig.shorts         = FASTLED_NRF52_SPIM->SHORTS;
             m_SpiSavedConfig.sck_pin        = FASTLED_NRF52_SPIM->PSEL.SCK;
@@ -119,7 +85,7 @@ namespace fl {
             m_SpiSavedConfig.dcx_config     = FASTLED_NRF52_SPIM->DCXCNT;
 #endif
         }
-        void restoreSpimConfig() FL_NO_EXCEPT {
+        void restoreSpimConfig() {
             // 0. ASSERT() the SPIM instance is not enabled
 
             FASTLED_NRF52_SPIM->INTENCLR        = 0xFFFFFFFF;
@@ -142,14 +108,14 @@ namespace fl {
         }
 
     public:
-        NRF52HardwareSPIOutput() {}
+        NRF52SPIOutput() {}
 
         // Low frequency GPIO is for signals with a frequency up to 10 kHz.  Lowest speed SPIM is 125kbps.
-        FL_STATIC_ASSERT(!FastPin<_DATA_PIN>::LowSpeedOnlyRecommended(),  "Invalid (low-speed only) pin specified");
-        FL_STATIC_ASSERT(!FastPin<_CLOCK_PIN>::LowSpeedOnlyRecommended(), "Invalid (low-speed only) pin specified");
+        static_assert(!FastPin<_DATA_PIN>::LowSpeedOnlyRecommended(),  "Invalid (low-speed only) pin specified");
+        static_assert(!FastPin<_CLOCK_PIN>::LowSpeedOnlyRecommended(), "Invalid (low-speed only) pin specified");
 
         /// initialize the SPI subssytem
-        void init() FL_NO_EXCEPT {
+        void init() {
             // 0. ASSERT() the SPIM instance is not enabled / in use
             //ASSERT(m_SPIM->ENABLE != (SPIM_ENABLE_ENABLE_Enabled << SPIM_ENABLE_ENABLE_Pos));
 
@@ -165,7 +131,7 @@ namespace fl {
                 );
             nrf_spim_frequency_set(
                 FASTLED_NRF52_SPIM,
-                spimFrequency()
+                NRF_SPIM_FREQ_4M // BUGBUG -- use _SPI_CLOCK_DIVIDER to determine frequency
                 );
             nrf_spim_pins_set(
                 FASTLED_NRF52_SPIM,
@@ -183,7 +149,7 @@ namespace fl {
         }
 
         /// latch the CS select
-        void select() FL_NO_EXCEPT {
+        void select() {
             //ASSERT(!s_InUse);
             saveSpimConfig();
             s_InUse = true;
@@ -191,20 +157,15 @@ namespace fl {
         }
 
         /// release the CS select
-        void release() FL_NO_EXCEPT {
+        void release() {
             //ASSERT(s_InUse);
             waitFully();
             s_InUse = false;
             restoreSpimConfig();
         }
 
-        void endTransaction() FL_NO_EXCEPT {
-            waitFully();
-            release();
-        }
-
         /// wait until all queued up data has been written
-        static void waitFully() FL_NO_EXCEPT {
+        static void waitFully() {
             if (!s_NeedToWait) return;
             // else, need to wait for END event
             while(!FASTLED_NRF52_SPIM->EVENTS_END) {};
@@ -216,7 +177,7 @@ namespace fl {
         }
         // wait only until we can add a new transaction into the registers
         // (caller must still waitFully() before actually starting this next transaction)
-        static void wait() FL_NO_EXCEPT {
+        static void wait() {
             if (!s_NeedToWait) return;
             while (!FASTLED_NRF52_SPIM->EVENTS_STARTED) {};
             // leave the event set here... caller must waitFully() and start next transaction
@@ -224,10 +185,10 @@ namespace fl {
         }
 
         /// write a byte out via SPI (returns immediately on writing register)
-        static void writeByte(u8 b) FL_NO_EXCEPT {
+        static void writeByte(uint8_t b) {
             wait();
             // cannot use pointer to stack, so copy to m_buffer[]
-            u8 i = (s_BufferIndex ? 1u : 0u);
+            uint8_t i = (s_BufferIndex ? 1u : 0u);
             s_BufferIndex = !s_BufferIndex; // 1 <==> 0 swap
 
             s_Buffer[i][0u] = b; // cannot use the stack location, so copy to a more permanent buffer...
@@ -246,10 +207,10 @@ namespace fl {
         }
 
         /// write a word out via SPI (returns immediately on writing register)
-        static void writeWord(u16 w) FL_NO_EXCEPT {
+        static void writeWord(uint16_t w) {
             wait();
             // cannot use pointer to stack, so copy to m_buffer[]
-            u8 i = (s_BufferIndex ? 1u : 0u);
+            uint8_t i = (s_BufferIndex ? 1u : 0u);
             s_BufferIndex = !s_BufferIndex; // 1 <==> 0 swap
 
             s_Buffer[i][0u] = (w >> 8u); // cannot use the stack location, so copy to a more permanent buffer...
@@ -269,12 +230,12 @@ namespace fl {
         }
 
         /// A raw set of writing byte values, assumes setup/init/waiting done elsewhere (static for use by adjustment classes)
-        static void writeBytesValueRaw(u8 value, int len) FL_NO_EXCEPT {
+        static void writeBytesValueRaw(uint8_t value, int len) {
             while (len--) { writeByte(value); }
         }
 
         /// A full cycle of writing a value for len bytes, including select, release, and waiting
-        void writeBytesValue(u8 value, int len) FL_NO_EXCEPT {
+        void writeBytesValue(uint8_t value, int len) {
             select();
             writeBytesValueRaw(value, len);
             waitFully();
@@ -282,7 +243,7 @@ namespace fl {
         }
 
         /// A full cycle of writing a raw block of data out, including select, release, and waiting
-        void writeBytes(u8 *data, int len) FL_NO_EXCEPT {
+        void writeBytes(uint8_t *data, int len) {
             // This is a special-case, with no adjustment of the bytes... write them directly...
             select();
             wait();
@@ -301,8 +262,8 @@ namespace fl {
         }
 
         /// A full cycle of writing a raw block of data out, including select, release, and waiting
-        template<class D> void writeBytes(u8 *data, int len) FL_NO_EXCEPT {
-            u8 * end = data + len;
+        template<class D> void writeBytes(uint8_t *data, int len) {
+            uint8_t * end = data + len;
             select();
             wait();
             while(data != end) {
@@ -318,7 +279,7 @@ namespace fl {
         //}
 
         /// write a single bit out, which bit from the passed in byte is determined by template parameter
-        template <u8 BIT> inline static void writeBit(u8 b) FL_NO_EXCEPT {
+        template <uint8_t BIT> inline static void writeBit(uint8_t b) {
             // SPIM instance must be finished transmitting and then disabled
             waitFully();
             nrf_spim_disable(FASTLED_NRF52_SPIM);
@@ -329,21 +290,16 @@ namespace fl {
                 FastPin<_DATA_PIN>::lo();
             }
             // delay 1/2 cycle per SPI bit
-            fl::delaycycles<_SPI_CLOCK_DIVIDER/2>();
+            delaycycles<_SPI_CLOCK_DIVIDER/2>();
             FastPin<_CLOCK_PIN>::toggle();
-            fl::delaycycles<_SPI_CLOCK_DIVIDER/2>();
+            delaycycles<_SPI_CLOCK_DIVIDER/2>();
             FastPin<_CLOCK_PIN>::toggle();
             // re-enable the SPIM instance
             nrf_spim_enable(FASTLED_NRF52_SPIM);
         }
 
-        /// Finalize transmission (no-op for NRF52 SPI)
-        /// This method exists for compatibility with other SPI implementations
-        /// that may need to flush buffers or perform post-transmission operations
-        static void finalizeTransmission() { }
-
         /// write out pixel data from the given PixelController object, including select, release, and waiting
-        template <u8 FLAGS, class D, EOrder RGB_ORDER> void writePixels(PixelController<RGB_ORDER> pixels, void* context = nullptr) FL_NO_EXCEPT {
+        template <uint8_t FLAGS, class D, EOrder RGB_ORDER> void writePixels(PixelController<RGB_ORDER> pixels, void* context = NULL) {
             select();
             int len = pixels.mLen;
             // TODO: If user indicates a pre-allocated double-buffer,
@@ -368,19 +324,17 @@ namespace fl {
 
     // Static member definition and initialization using templates.
     // see https://stackoverflow.com/questions/3229883/static-member-initialization-in-a-class-template#answer-3229919
-    template <u8 _DATA_PIN, u8 _CLOCK_PIN, u32 _SPI_CLOCK_DIVIDER>
-    bool NRF52HardwareSPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER>::s_InUse = false;
-    template <u8 _DATA_PIN, u8 _CLOCK_PIN, u32 _SPI_CLOCK_DIVIDER>
-    bool NRF52HardwareSPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER>::s_NeedToWait = false;
-    template <u8 _DATA_PIN, u8 _CLOCK_PIN, u32 _SPI_CLOCK_DIVIDER>
-    u8 NRF52HardwareSPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER>::s_BufferIndex = 0;
-    template <u8 _DATA_PIN, u8 _CLOCK_PIN, u32 _SPI_CLOCK_DIVIDER>
-    u8 NRF52HardwareSPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER>::s_Buffer[2][2] = {{0,0},{0,0}};
+    template <uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER>
+    bool NRF52SPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER>::s_InUse = false;
+    template <uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER>
+    bool NRF52SPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER>::s_NeedToWait = false;
+    template <uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER>
+    uint8_t NRF52SPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER>::s_BufferIndex = 0;
+    template <uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER>
+    uint8_t NRF52SPIOutput<_DATA_PIN, _CLOCK_PIN, _SPI_CLOCK_DIVIDER>::s_Buffer[2][2] = {{0,0},{0,0}};
 
 #endif // #ifndef FASTLED_FORCE_SOFTWARE_SPI
 
 
 
-
-}  // namespace fl
-#endif // __FASTSPI_ARM_NRF52_H
+#endif // #ifndef __FASTPIN_ARM_NRF52_H

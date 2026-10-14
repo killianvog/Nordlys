@@ -1,19 +1,12 @@
-// IWYU pragma: private
-
 #ifndef __INC_FASTPIN_ARM_SAM_H
 #define __INC_FASTPIN_ARM_SAM_H
 
-#include "fl/stl/compiler_control.h"
-// Include fastpin_base.h for reg32_t and ptr_reg32_t typedefs
-// This reopens namespace fl but typedefs will still be in scope
-#include "fl/system/fastpin_base.h"
-#include "fl/system/pin.h"  // For PinMode, PinValue enums
+#include "fl/force_inline.h"
 
-FL_DISABLE_WARNING_PUSH
-FL_DISABLE_WARNING_DEPRECATED_REGISTER
-namespace fl {
+FASTLED_NAMESPACE_BEGIN
+
 #if defined(FASTLED_FORCE_SOFTWARE_PINS)
-#warning "Software pin support forced, pin access will be slightly slower."
+#warning "Software pin support forced, pin access will be sloightly slower."
 #define NO_HARDWARE_PIN_SUPPORT
 #undef HAS_HARDWARE_PIN_SUPPORT
 
@@ -24,13 +17,13 @@ namespace fl {
 /// uses the full port GPIO registers.  In theory, in some way, bit-band register access -should- be faster, however I have found
 /// that something about the way gcc does register allocation results in the bit-band code being slower.  It will need more fine tuning.
 /// The registers are data register, set output register, clear output register, set data direction register
-template<u8 PIN, u32 _MASK, typename _PDOR, typename _PSOR, typename _PCOR, typename _PDDR> class _DUEPIN {
+template<uint8_t PIN, uint32_t _MASK, typename _PDOR, typename _PSOR, typename _PCOR, typename _PDDR> class _DUEPIN {
 public:
-	typedef volatile u32 * port_ptr_t;
-	typedef u32 port_t;
+	typedef volatile uint32_t * port_ptr_t;
+	typedef uint32_t port_t;
 
-	inline static void setOutput() { pinMode(PIN, PinMode::Output); } // TODO: perform MUX config { _PDDR::r() |= _MASK; }
-	inline static void setInput() { pinMode(PIN, PinMode::Input); } // TODO: preform MUX config { _PDDR::r() &= ~_MASK; }
+	inline static void setOutput() { pinMode(PIN, OUTPUT); } // TODO: perform MUX config { _PDDR::r() |= _MASK; }
+	inline static void setInput() { pinMode(PIN, INPUT); } // TODO: preform MUX config { _PDDR::r() &= ~_MASK; }
 
 	inline static void hi() __attribute__ ((always_inline)) { _PSOR::r() = _MASK; }
 	inline static void lo() __attribute__ ((always_inline)) { _PCOR::r() = _MASK; }
@@ -50,20 +43,18 @@ public:
 	inline static port_ptr_t sport() __attribute__ ((always_inline)) { return &_PSOR::r(); }
 	inline static port_ptr_t cport() __attribute__ ((always_inline)) { return &_PCOR::r(); }
 	inline static port_t mask() __attribute__ ((always_inline)) { return _MASK; }
-
-	static constexpr bool validpin() { return true; }
 };
 
 
 /// Template definition for DUE  style ARM pins using bit banding, providing direct access to the various GPIO registers.  GCC
 /// does a poor job of optimizing around these accesses so they are not being used just yet.
-template<u8 PIN, u32 _BIT, typename _PDOR, typename _PSOR, typename _PCOR, typename _PDDR> class _DUEPIN_BITBAND {
+template<uint8_t PIN, uint32_t _BIT, typename _PDOR, typename _PSOR, typename _PCOR, typename _PDDR> class _DUEPIN_BITBAND {
 public:
-	typedef volatile u32 * port_ptr_t;
-	typedef u32 port_t;
+	typedef volatile uint32_t * port_ptr_t;
+	typedef uint32_t port_t;
 
-	inline static void setOutput() { pinMode(PIN, PinMode::Output); } // TODO: perform MUX config { _PDDR::r() |= _MASK; }
-	inline static void setInput() { pinMode(PIN, PinMode::Input); } // TODO: preform MUX config { _PDDR::r() &= ~_MASK; }
+	inline static void setOutput() { pinMode(PIN, OUTPUT); } // TODO: perform MUX config { _PDDR::r() |= _MASK; }
+	inline static void setInput() { pinMode(PIN, INPUT); } // TODO: preform MUX config { _PDDR::r() &= ~_MASK; }
 
 	inline static void hi() __attribute__ ((always_inline)) { *_PDOR::template rx<_BIT>() = 1; }
 	inline static void lo() __attribute__ ((always_inline)) { *_PDOR::template rx<_BIT>() = 0; }
@@ -81,12 +72,10 @@ public:
 	inline static port_t loval() __attribute__ ((always_inline)) { return 0; }
 	inline static port_ptr_t port() __attribute__ ((always_inline)) { return _PDOR::template rx<_BIT>(); }
 	inline static port_t mask() __attribute__ ((always_inline)) { return 1; }
-
-	static constexpr bool validpin() { return true; }
 };
 
-#define GPIO_BITBAND_ADDR(reg, bit) (((u32)&(reg) - 0x40000000) * 32 + (bit) * 4 + 0x42000000)
-#define GPIO_BITBAND_PTR(reg, bit) ((u32 *)GPIO_BITBAND_ADDR((reg), (bit)))
+#define GPIO_BITBAND_ADDR(reg, bit) (((uint32_t)&(reg) - 0x40000000) * 32 + (bit) * 4 + 0x42000000)
+#define GPIO_BITBAND_PTR(reg, bit) ((uint32_t *)GPIO_BITBAND_ADDR((reg), (bit)))
 
 #define _R(T) struct __gen_struct_ ## T
 #define _RD32(T) struct __gen_struct_ ## T { static FASTLED_FORCE_INLINE reg32_t r() { return T; } \
@@ -143,8 +132,8 @@ _FL_DEFPIN(110, 29, B); _FL_DEFPIN(111, 30, B); _FL_DEFPIN(112, 31, B); _FL_DEFP
 #endif
 
 #endif // FASTLED_FORCE_SOFTWARE_PINS
-}  // namespace fl
 
-FL_DISABLE_WARNING_POP
+FASTLED_NAMESPACE_END
+
 
 #endif // __INC_FASTPIN_ARM_SAM_H

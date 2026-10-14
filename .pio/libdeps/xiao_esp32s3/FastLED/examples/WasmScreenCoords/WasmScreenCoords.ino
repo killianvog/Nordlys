@@ -1,31 +1,24 @@
-// @filter: (mem is large)
-
 /// @file    WasmScreenCoords.ino
-/// @brief   Demonstrates screen coordinate mapping for web display
-/// @example WasmScreenCoords.ino
+/// @brief   Simple test for screen coordinates in the web compiled version of FastLED.
+/// @author  Zach Vorhies
 ///
 /// This sketch is fully compatible with the FastLED web compiler. To use it do the following:
 /// 1. Install Fastled: `pip install fastled`
 /// 2. cd into this examples page.
 /// 3. Run the FastLED web compiler at root: `fastled`
-/// 4. When the compiler is done a web page will open.
 
-#include <Arduino.h>
+
+// printf
+#include <stdio.h>
+#include <string>
+#include <vector>
+
 #include <FastLED.h>
+#include "fl/json.h"
+#include "fl/slice.h"
+#include "fl/screenmap.h"
+#include "fl/math_macros.h"
 
-
-#ifdef __EMSCRIPTEN__
-
-#include "fl/stl/vector.h"
-
-
-#include "fl/stl/json.h"
-#include "fl/stl/span.h"
-#include "fl/math/screenmap.h"
-#include "fl/math/math.h"
-
-using fl::vec2f;
-using fl::vector;
 
 
 #define LED_PIN 3
@@ -37,12 +30,12 @@ CRGB leds[NUM_LEDS];
 CRGB leds2[NUM_LEDS];
 
 
-void make_map(int stepx, int stepy, int num, fl::vector<vec2f>* _map) {
+void make_map(int stepx, int stepy, int num, std::vector<pair_xy_float>* _map) {
     float x = 0;
     float y = 0;
-    fl::vector<vec2f>& map = *_map;
+    std::vector<pair_xy_float>& map = *_map;
     for (int16_t i = 0; i < num; i++) {
-        map.push_back(vec2f{x, y});
+        map.push_back(pair_xy_float{x, y});
         x += stepx;
         y += stepy;
     }
@@ -56,13 +49,13 @@ void setup() {
         c = CRGB::Red;
     }
     FastLED.setBrightness(255);
-    fl::vector<vec2f> map;
+    std::vector<pair_xy_float> map;
     make_map(1, 1, NUM_LEDS, &map);
-    fl::ScreenMap screenmap = fl::ScreenMap(map.data(), map.size());
+    ScreenMap screenmap = ScreenMap(map.data(), map.size());
 
-    fl::vector<fl::vec2f> map2;
+    std::vector<pair_xy_float> map2;
     make_map(-1, -1, NUM_LEDS, &map2);
-    fl::ScreenMap screenmap2 = fl::ScreenMap(map2.data(), map2.size());
+    ScreenMap screenmap2 = ScreenMap(map2.data(), map2.size());
 
     FastLED.addLeds<WS2811, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS)
         .setScreenMap(screenmap);
@@ -76,15 +69,3 @@ void loop() {
 }
 
 
-#else
-
-void setup() {
-    Serial.begin(115200);
-    Serial.println("setup");
-}
-
-void loop() {
-    Serial.println("loop");
-}
-
-#endif  // __EMSCRIPTEN__

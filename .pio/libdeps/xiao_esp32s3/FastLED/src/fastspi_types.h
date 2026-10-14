@@ -1,23 +1,14 @@
-#pragma once
-
 /// @file fastspi_types.h
 /// Data types and constants used by SPI interfaces
 
 #ifndef __INC_FASTSPI_TYPES_H
 #define __INC_FASTSPI_TYPES_H
 
-#include "fl/stl/compiler_control.h"
-#include "fl/stl/compiler_control.h"
-#include "fl/stl/stdint.h"
-#include "fl/stl/noexcept.h"
+#include "fl/force_inline.h"
+#include "fl/namespace.h"
+#include "fl/unused.h"
 
-FL_DISABLE_WARNING_PUSH
-FL_DISABLE_WARNING_DEPRECATED_REGISTER
-
-// Note: The two-parameter adjust(data, scale) method below requires fl::scale8,
-// but we cannot forward-declare it here due to linter rules (no 'namespace fl {}'
-// in src/ root files) and circular dependency issues (scale8.h includes crgb.h).
-// The method is currently unused in the codebase.
+FASTLED_NAMESPACE_BEGIN
 
 /// @name Byte Re-Order Macros
 /// Some helper macros for getting at mis-ordered byte values.
@@ -44,20 +35,19 @@ FL_DISABLE_WARNING_DEPRECATED_REGISTER
 /// @todo Convinience macro for building these
 class DATA_NOP {
 public:
-    /// Hook called to adjust a byte of data before writing it to the output.
+    /// Hook called to adjust a byte of data before writing it to the output. 
     /// In this dummy version, no adjustment is made.
-    static FASTLED_FORCE_INLINE fl::u8 adjust(FASTLED_REGISTER fl::u8 data) FL_NO_EXCEPT { return data; }
+    static FASTLED_FORCE_INLINE uint8_t adjust(FASTLED_REGISTER uint8_t data) { return data; }
 
-    // Two-parameter version commented out due to circular dependency issues
-    // (would need fl::scale8 which requires crgb.h, creating circular dependency).
-    // This method was never used in the codebase.
-    // static FASTLED_FORCE_INLINE uint8_t adjust(FASTLED_REGISTER uint8_t data, FASTLED_REGISTER uint8_t scale) {
-    //     return fl::scale8(data, scale);
-    // }
+    /// @copybrief adjust(FASTLED_REGISTER uint8_t)
+    /// @param data input byte
+    /// @param scale scale value
+    /// @returns input byte rescaled using ::scale8(uint8_t, uint8_t)
+    static FASTLED_FORCE_INLINE uint8_t adjust(FASTLED_REGISTER uint8_t data, FASTLED_REGISTER uint8_t scale) { return scale8(data, scale); }
 
-    /// Hook called after a block of data is written to the output.
+    /// Hook called after a block of data is written to the output. 
     /// In this dummy version, no action is performed.
-    static FASTLED_FORCE_INLINE void postBlock(int /* len */, void* context = nullptr) FL_NO_EXCEPT {
+    static FASTLED_FORCE_INLINE void postBlock(int /* len */, void* context = NULL) {
         FASTLED_UNUSED(context);
     }
 };
@@ -92,6 +82,6 @@ public:
 /// @todo Unused. Remove?
 #define MAX_DATA_RATE 0
 
-#endif
+FASTLED_NAMESPACE_END
 
-FL_DISABLE_WARNING_POP
+#endif

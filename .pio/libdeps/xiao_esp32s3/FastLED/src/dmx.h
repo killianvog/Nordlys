@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "fl/system/fastled.h"
+#include "FastLED.h"
 
 /// @addtogroup Chipsets
 /// @{
@@ -12,13 +12,12 @@
 /// @{
 
 #if defined(DmxSimple_h) || defined(FASTLED_DOXYGEN)
-// IWYU pragma: begin_keep
 #include <DmxSimple.h>
-// IWYU pragma: end_keep
 
 /// Flag set when the DmxSimple library is included
 #define HAS_DMX_SIMPLE
 
+FASTLED_NAMESPACE_BEGIN
 
 /// DMX512 based LED controller class, using the DmxSimple library
 /// @tparam DATA_PIN the data pin for the output of the DMX bus
@@ -26,7 +25,7 @@
 /// @see https://www.pjrc.com/teensy/td_libs_DmxSimple.html
 /// @see https://github.com/PaulStoffregen/DmxSimple
 /// @see https://en.wikipedia.org/wiki/DMX512
-template <fl::u8 DATA_PIN, EOrder RGB_ORDER = RGB> class DMXSimpleController : public CPixelLEDController<RGB_ORDER> {
+template <uint8_t DATA_PIN, EOrder RGB_ORDER = RGB> class DMXSimpleController : public CPixelLEDController<RGB_ORDER> {
 public:
 	/// Initialize the LED controller
 	virtual void init() { DmxSimple.usePin(DATA_PIN); }
@@ -45,19 +44,17 @@ protected:
 	}
 };
 
-
+FASTLED_NAMESPACE_END
 
 #endif
 
 #if defined(DmxSerial_h) || defined(FASTLED_DOXYGEN)
-// IWYU pragma: begin_keep
 #include <DMXSerial.h>
-// IWYU pragma: end_keep
 
 /// Flag set when the DMXSerial library is included
 #define HAS_DMX_SERIAL
 
-
+FASTLED_NAMESPACE_BEGIN
 
 /// DMX512 based LED controller class, using the DMXSerial library
 /// @tparam RGB_ORDER the RGB ordering for these LEDs
@@ -69,7 +66,7 @@ public:
 	/// Initialize the LED controller
 	virtual void init() { DMXSerial.init(DMXController); }
 
-	/// @copydoc CPixelLEDController::showPixels().
+	/// @copydoc CPixelLEDController::showPixels()
 	virtual void showPixels(PixelController<RGB_ORDER> & pixels) {
 		int iChannel = 1;
 		while(pixels.has(1)) {
@@ -82,9 +79,10 @@ public:
 	}
 };
 
-
+FASTLED_NAMESPACE_END
 
 /// @} DMXControllers
 /// @} Chipsets
 
 #endif
+

@@ -1,31 +1,26 @@
 #pragma once
 
-// IWYU pragma: private
+#include <stdint.h>
+#include "fl/namespace.h"
 
-#include "fl/stl/stdint.h"
-#include "fl/system/fastpin_base.h"
-#include "fl/system/pin.h"  // For PinMode, PinValue enums
-#include "fl/stl/compiler_control.h"
+FASTLED_NAMESPACE_BEGIN
 
-FL_DISABLE_WARNING_PUSH
-FL_DISABLE_WARNING_DEPRECATED_REGISTER
-namespace fl {
 struct FASTLED_ESP_IO {
-    volatile u32 _GPO;
-    volatile u32 _GPOS;
-    volatile u32 _GPOC;
+    volatile uint32_t _GPO;
+    volatile uint32_t _GPOS;
+    volatile uint32_t _GPOC;
 };
 
 #define _GPB (*(FASTLED_ESP_IO*)(0x60000000+(0x300)))
 
 
-template<u8 PIN, u32 MASK> class _ESPPIN {
+template<uint8_t PIN, uint32_t MASK> class _ESPPIN {
 public:
-    typedef volatile u32 * port_ptr_t;
-    typedef u32 port_t;
+    typedef volatile uint32_t * port_ptr_t;
+    typedef uint32_t port_t;
 
-    inline static void setOutput() { pinMode(PIN, PinMode::Output); }
-    inline static void setInput() { pinMode(PIN, PinMode::Input); }
+    inline static void setOutput() { pinMode(PIN, OUTPUT); }
+    inline static void setInput() { pinMode(PIN, INPUT); }
 
     inline static void hi() __attribute__ ((always_inline)) { if(PIN < 16) { _GPB._GPOS = MASK; } else { GP16O = 1; } }
     inline static void lo() __attribute__ ((always_inline)) { if(PIN < 16) { _GPB._GPOC = MASK; } else { GP16O = 0; } }
@@ -47,12 +42,7 @@ public:
     inline static port_t mask() __attribute__ ((always_inline)) { return MASK; }
 
     inline static bool isset() __attribute__ ((always_inline)) { return (PIN < 16) ? (GPO & MASK) : (GP16O & MASK); }
-
-    inline static constexpr bool validpin() { return true; }
 };
-
-// Forward declaration of FastPin template
-template<u8 PIN> class FastPin;
 
 #define _FL_DEFPIN(PIN, REAL_PIN) template<> class FastPin<PIN> : public _ESPPIN<REAL_PIN, (1<<(REAL_PIN & 0x0F))> {};
 
@@ -68,17 +58,6 @@ _FL_DEFPIN(4,4); _FL_DEFPIN(5,5);
 
 _FL_DEFPIN(12,12); _FL_DEFPIN(13,13); _FL_DEFPIN(14,14); _FL_DEFPIN(15,15);
 _FL_DEFPIN(16,16);
-
-// Keep example defaults off UART0, boot-strapping pins, and flash GPIOs.
-#ifndef FL_PIN_CLOCKLESS_1
-#define FL_PIN_CLOCKLESS_1 4
-#endif
-#ifndef FL_PIN_SPI_DATA_1
-#define FL_PIN_SPI_DATA_1 13
-#endif
-#ifndef FL_PIN_SPI_CLOCK_1
-#define FL_PIN_SPI_CLOCK_1 14
-#endif
 
 #define PORTA_FIRST_PIN 12
 #elif defined(FASTLED_ESP8266_D1_PIN_ORDER)
@@ -100,17 +79,6 @@ _FL_DEFPIN(13,14);
 _FL_DEFPIN(14,4);
 _FL_DEFPIN(15,5);
 
-// D2 is GPIO4; D7/D5 are the established hardware SPI MOSI/SCK pins.
-#ifndef FL_PIN_CLOCKLESS_1
-#define FL_PIN_CLOCKLESS_1 4
-#endif
-#ifndef FL_PIN_SPI_DATA_1
-#define FL_PIN_SPI_DATA_1 7
-#endif
-#ifndef FL_PIN_SPI_CLOCK_1
-#define FL_PIN_SPI_CLOCK_1 5
-#endif
-
 #define PORTA_FIRST_PIN 12
 
 #else // if defined(FASTLED_ESP8266_NODEMCU_PIN_ORDER)
@@ -120,17 +88,6 @@ _FL_DEFPIN(15,5);
 _FL_DEFPIN(0,16); _FL_DEFPIN(1,5); _FL_DEFPIN(2,4); _FL_DEFPIN(3,0);
 _FL_DEFPIN(4,2); _FL_DEFPIN(5,14); _FL_DEFPIN(6,12); _FL_DEFPIN(7,13);
 _FL_DEFPIN(8,15); _FL_DEFPIN(9,3); _FL_DEFPIN(10,1);
-
-// D2 is GPIO4; D7/D5 are the established hardware SPI MOSI/SCK pins.
-#ifndef FL_PIN_CLOCKLESS_1
-#define FL_PIN_CLOCKLESS_1 2
-#endif
-#ifndef FL_PIN_SPI_DATA_1
-#define FL_PIN_SPI_DATA_1 7
-#endif
-#ifndef FL_PIN_SPI_CLOCK_1
-#define FL_PIN_SPI_CLOCK_1 5
-#endif
 
 #define PORTA_FIRST_PIN 6
 
@@ -142,6 +99,5 @@ _FL_DEFPIN(8,15); _FL_DEFPIN(9,3); _FL_DEFPIN(10,1);
 #endif
 
 #define HAS_HARDWARE_PIN_SUPPORT
-}  // namespace fl
 
-FL_DISABLE_WARNING_POP
+FASTLED_NAMESPACE_END

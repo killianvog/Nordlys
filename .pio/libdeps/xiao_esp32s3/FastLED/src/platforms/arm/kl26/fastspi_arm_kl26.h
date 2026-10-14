@@ -1,14 +1,9 @@
-// IWYU pragma: private
-
 #ifndef __INC_FASTSPI_ARM_KL26_H
 #define __INC_FASTSPI_ARM_KL26_h
-#include "fl/stl/compiler_control.h"
-#include "fl/stl/noexcept.h"
 
-FL_DISABLE_WARNING_PUSH
-FL_DISABLE_WARNING_DEPRECATED_REGISTER
-namespace fl {
-template <int VAL> void getScalars(u8 & sppr, u8 & spr) FL_NO_EXCEPT {
+FASTLED_NAMESPACE_BEGIN
+
+template <int VAL> void getScalars(uint8_t & sppr, uint8_t & spr) {
   if(VAL > 4096) { sppr=7; spr=8; }
   else if(VAL > 3584) { sppr=6; spr=8; }
   else if(VAL > 3072) { sppr=5; spr=8; }
@@ -87,11 +82,11 @@ template <int VAL> void getScalars(u8 & sppr, u8 & spr) FL_NO_EXCEPT {
 #define SPIX (*(KINETISL_SPI_t*)pSPIX)
 #define ARM_HARDWARE_SPI
 
-template <u8 _DATA_PIN, u8 _CLOCK_PIN, u32 _SPI_CLOCK_DIVIDER, u32 pSPIX>
+template <uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER, uint32_t pSPIX>
 class ARMHardwareSPIOutput {
-  Selectable *mPSelect;
+  Selectable *m_pSelect;
 
-  static inline void enable_pins(void) FL_NO_EXCEPT __attribute__((always_inline)) {
+  static inline void enable_pins(void) __attribute__((always_inline)) {
     switch(_DATA_PIN) {
       case 0: CORE_PIN0_CONFIG =  PORT_PCR_MUX(2); break;
       case 1: CORE_PIN1_CONFIG =  PORT_PCR_MUX(5); break;
@@ -109,7 +104,7 @@ class ARMHardwareSPIOutput {
     }
   }
 
-  static inline void disable_pins(void) FL_NO_EXCEPT __attribute((always_inline)) {
+  static inline void disable_pins(void) __attribute((always_inline)) {
     switch(_DATA_PIN) {
       case 0: CORE_PIN0_CONFIG = PORT_PCR_SRE | PORT_PCR_MUX(1); break;
       case 1: CORE_PIN1_CONFIG = PORT_PCR_SRE | PORT_PCR_MUX(1); break;
@@ -127,8 +122,8 @@ class ARMHardwareSPIOutput {
     }
   }
 
-  void setSPIRate() FL_NO_EXCEPT {
-    u8 sppr, spr;
+  void setSPIRate() {
+    uint8_t sppr, spr;
     getScalars<_SPI_CLOCK_DIVIDER>(sppr, spr);
 
     // Set the speed
@@ -140,19 +135,19 @@ class ARMHardwareSPIOutput {
   }
 
 public:
-  ARMHardwareSPIOutput() { mPSelect = nullptr; }
-  ARMHardwareSPIOutput(Selectable *pSelect) { mPSelect = pSelect; }
+  ARMHardwareSPIOutput() { m_pSelect = NULL; }
+  ARMHardwareSPIOutput(Selectable *pSelect) { m_pSelect = pSelect; }
 
   // set the object representing the selectable
-  void setSelect(Selectable *pSelect) { mPSelect = pSelect; }
+  void setSelect(Selectable *pSelect) { m_pSelect = pSelect; }
 
   // initialize the SPI subssytem
-  void init() FL_NO_EXCEPT {
+  void init() {
     FastPin<_DATA_PIN>::setOutput();
     FastPin<_CLOCK_PIN>::setOutput();
 
     // Enable the SPI clocks
-    u32 sim4 = SIM_SCGC4;
+    uint32_t sim4 = SIM_SCGC4;
     if ((pSPIX == 0x40076000) && !(sim4 & SIM_SCGC4_SPI0)) {
       SIM_SCGC4 = sim4 | SIM_SCGC4_SPI0;
     }
@@ -167,22 +162,17 @@ public:
   }
 
   // latch the CS select
-  void inline select() FL_NO_EXCEPT __attribute__((always_inline)) {
-    if(mPSelect != nullptr) { mPSelect->select(); }
+  void inline select() __attribute__((always_inline)) {
+    if(m_pSelect != NULL) { m_pSelect->select(); }
     setSPIRate();
     enable_pins();
   }
 
 
   // release the CS select
-  void inline release() FL_NO_EXCEPT __attribute__((always_inline)) {
+  void inline release() __attribute__((always_inline)) {
     disable_pins();
-    if(mPSelect != nullptr) { mPSelect->release(); }
-  }
-
-  void endTransaction() FL_NO_EXCEPT {
-    waitFully();
-    release();
+    if(m_pSelect != NULL) { m_pSelect->release(); }
   }
 
   // Wait for the world to be clear
@@ -192,20 +182,20 @@ public:
   void waitFully() { wait(); }
 
   // not the most efficient mechanism in the world - but should be enough for sm16716 and friends
-  template <u8 BIT> inline static void writeBit(u8 b) { /* TODO */ }
+  template <uint8_t BIT> inline static void writeBit(uint8_t b) { /* TODO */ }
 
   // write a byte out via SPI (returns immediately on writing register)
-  static void writeByte(u8 b) __attribute__((always_inline)) { wait(); SPIX.DL = b; }
+  static void writeByte(uint8_t b) __attribute__((always_inline)) { wait(); SPIX.DL = b; }
   // write a word out via SPI (returns immediately on writing register)
-  static void writeWord(u16 w) __attribute__((always_inline)) { writeByte(w>>8); writeByte(w & 0xFF); }
+  static void writeWord(uint16_t w) __attribute__((always_inline)) { writeByte(w>>8); writeByte(w & 0xFF); }
 
   // A raw set of writing byte values, assumes setup/init/waiting done elsewhere (static for use by adjustment classes)
-  static void writeBytesValueRaw(u8 value, int len) FL_NO_EXCEPT {
+  static void writeBytesValueRaw(uint8_t value, int len) {
     while(len--) { writeByte(value); }
   }
 
   // A full cycle of writing a value for len bytes, including select, release, and waiting
-  void writeBytesValue(u8 value, int len) FL_NO_EXCEPT {
+  void writeBytesValue(uint8_t value, int len) {
     setSPIRate();
     select();
     while(len--) {
@@ -216,9 +206,9 @@ public:
   }
 
   // A full cycle of writing a raw block of data out, including select, release, and waiting
-  template <class D> void writeBytes(FASTLED_REGISTER u8 *data, int len) FL_NO_EXCEPT {
+  template <class D> void writeBytes(FASTLED_REGISTER uint8_t *data, int len) {
     setSPIRate();
-    u8 *end = data + len;
+    uint8_t *end = data + len;
     select();
     // could be optimized to write 16bit words out instead of 8bit bytes
     while(data != end) {
@@ -229,10 +219,10 @@ public:
     release();
   }
 
-  void writeBytes(FASTLED_REGISTER u8 *data, int len) { writeBytes<DATA_NOP>(data, len); }
+  void writeBytes(FASTLED_REGISTER uint8_t *data, int len) { writeBytes<DATA_NOP>(data, len); }
 
 
-  template <u8 FLAGS, class D, EOrder RGB_ORDER> void writePixels(PixelController<RGB_ORDER> pixels, void* context = nullptr) FL_NO_EXCEPT {
+  template <uint8_t FLAGS, class D, EOrder RGB_ORDER> void writePixels(PixelController<RGB_ORDER> pixels, void* context = NULL) {
     int len = pixels.mLen;
 
     select();
@@ -255,14 +245,8 @@ public:
     release();
   }
 
-  /// Finalize transmission (no-op for Teensy LC SPI)
-  /// This method exists for compatibility with other SPI implementations
-  /// that may need to flush buffers or perform post-transmission operations
-  static void finalizeTransmission() { }
-
 };
-}  // namespace fl
 
-FL_DISABLE_WARNING_POP
+FASTLED_NAMESPACE_END
 
 #endif

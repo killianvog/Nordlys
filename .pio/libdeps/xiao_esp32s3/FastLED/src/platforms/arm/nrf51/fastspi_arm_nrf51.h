@@ -1,13 +1,7 @@
-// IWYU pragma: private
-
-// ok no namespace fl
 #ifndef __INC_FASTSPI_NRF_H
 #define __INC_FASTSPI_NRF_H
 
-#include "platforms/arm/nrf52/is_nrf52.h"
-#include "fl/stl/noexcept.h"
-
-#ifdef FL_IS_NRF52
+#ifdef NRF51
 
 #ifndef FASTLED_FORCE_SOFTWARE_SPI
 #define FASTLED_ALL_PINS_HARDWARE_SPI
@@ -15,18 +9,18 @@
 // A nop/stub class, mostly to show the SPI methods that are needed/used by the various SPI chipset implementations.  Should
 // be used as a definition for the set of methods that the spi implementation classes should use (since C++ doesn't support the
 // idea of interfaces - it's possible this could be done with virtual classes, need to decide if i want that overhead)
-template <fl::u8 _DATA_PIN, fl::u8 _CLOCK_PIN, fl::u32 _SPI_CLOCK_DIVIDER>
+template <uint8_t _DATA_PIN, uint8_t _CLOCK_PIN, uint32_t _SPI_CLOCK_DIVIDER>
 class NRF51SPIOutput {
 
     struct saveData {
-        fl::u32 sck;
-        fl::u32 mosi;
-        fl::u32 miso;
-        fl::u32 freq;
-        fl::u32 enable;
+        uint32_t sck;
+        uint32_t mosi;
+        uint32_t miso;
+        uint32_t freq;
+        uint32_t enable;
     } mSavedData;
 
-    void saveSPIData() FL_NO_EXCEPT {
+    void saveSPIData() {
         mSavedData.sck = NRF_SPI0->PSELSCK;
         mSavedData.mosi = NRF_SPI0->PSELMOSI;
         mSavedData.miso = NRF_SPI0->PSELMISO;
@@ -34,7 +28,7 @@ class NRF51SPIOutput {
         mSavedData.enable = NRF_SPI0->ENABLE;
     }
 
-    void restoreSPIData() FL_NO_EXCEPT {
+    void restoreSPIData() {
         NRF_SPI0->PSELSCK = mSavedData.sck;
         NRF_SPI0->PSELMOSI = mSavedData.mosi;
         NRF_SPI0->PSELMISO = mSavedData.miso;
@@ -50,7 +44,7 @@ public:
     void setSelect(Selectable *pSelect) { /* TODO */ }
 
     // initialize the SPI subssytem
-    void init() FL_NO_EXCEPT {
+    void init() {
         FastPin<_DATA_PIN>::setOutput();
         FastPin<_CLOCK_PIN>::setOutput();
         NRF_SPI0->PSELSCK = _CLOCK_PIN;
@@ -67,12 +61,7 @@ public:
     // release the CS select
     void release() { shouldWait(); restoreSPIData(); }
 
-    void endTransaction() FL_NO_EXCEPT {
-        waitFully();
-        release();
-    }
-
-    static bool shouldWait(bool wait = false) FL_NO_EXCEPT __attribute__((always_inline)) __attribute__((always_inline)) {
+    static bool shouldWait(bool wait = false) __attribute__((always_inline)) __attribute__((always_inline)) {
         // static bool sWait=false;
         // bool oldWait = sWait;
         // sWait = wait;
@@ -86,16 +75,16 @@ public:
     static void wait() __attribute__((always_inline)){ if(shouldWait()) { while(NRF_SPI0->EVENTS_READY==0); } NRF_SPI0->INTENCLR; }
 
     // write a byte out via SPI (returns immediately on writing register)
-    static void writeByte(fl::u8 b) __attribute__((always_inline)) { wait(); NRF_SPI0->TXD = b; NRF_SPI0->INTENCLR; shouldWait(true); }
+    static void writeByte(uint8_t b) __attribute__((always_inline)) { wait(); NRF_SPI0->TXD = b; NRF_SPI0->INTENCLR; shouldWait(true); }
 
     // write a word out via SPI (returns immediately on writing register)
-    static void writeWord(fl::u16 w) __attribute__((always_inline)){ writeByte(w>>8); writeByte(w & 0xFF);  }
+    static void writeWord(uint16_t w) __attribute__((always_inline)){ writeByte(w>>8); writeByte(w & 0xFF);  }
 
     // A raw set of writing byte values, assumes setup/init/waiting done elsewhere (static for use by adjustment classes)
-    static void writeBytesValueRaw(fl::u8 value, int len) { while(len--) { writeByte(value);  } }
+    static void writeBytesValueRaw(uint8_t value, int len) { while(len--) { writeByte(value);  } }
 
     // A full cycle of writing a value for len bytes, including select, release, and waiting
-    void writeBytesValue(fl::u8 value, int len) FL_NO_EXCEPT {
+    void writeBytesValue(uint8_t value, int len) {
         select();
         while(len--) {
             writeByte(value);
@@ -105,8 +94,8 @@ public:
     }
 
     // A full cycle of writing a raw block of data out, including select, release, and waiting
-    template<class D> void writeBytes(fl::u8 *data, int len) FL_NO_EXCEPT {
-        fl::u8 *end = data + len;
+    template<class D> void writeBytes(uint8_t *data, int len) {
+        uint8_t *end = data + len;
         select();
         while(data != end) {
             writeByte(D::adjust(*data++));
@@ -116,12 +105,12 @@ public:
         release();
     }
 
-    void writeBytes(fl::u8 *data, int len) FL_NO_EXCEPT {
+    void writeBytes(uint8_t *data, int len) {
         writeBytes<DATA_NOP>(data, len);
     }
 
     // write a single bit out, which bit from the passed in byte is determined by template parameter
-    template <fl::u8 BIT> inline static void writeBit(fl::u8 b) FL_NO_EXCEPT {
+    template <uint8_t BIT> inline static void writeBit(uint8_t b) {
         waitFully();
         NRF_SPI0->ENABLE = 0;
         if(b & 1<<BIT) {
@@ -134,7 +123,7 @@ public:
         NRF_SPI0->ENABLE = 1;
     }
 
-    template <fl::u8 FLAGS, class D, EOrder RGB_ORDER> void writePixels(PixelController<RGB_ORDER> pixels, void* context = nullptr) FL_NO_EXCEPT {
+    template <uint8_t FLAGS, class D, EOrder RGB_ORDER> void writePixels(PixelController<RGB_ORDER> pixels, void* context = NULL) {
         select();
         int len = pixels.mLen;
         while(pixels.has(1)) {
@@ -152,11 +141,6 @@ public:
         waitFully();
         release();
     }
-
-    /// Finalize transmission (no-op for NRF51 SPI)
-    /// This method exists for compatibility with other SPI implementations
-    /// that may need to flush buffers or perform post-transmission operations
-    static void finalizeTransmission() { }
 };
 
 #endif

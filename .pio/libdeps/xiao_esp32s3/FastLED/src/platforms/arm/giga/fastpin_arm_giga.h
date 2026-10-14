@@ -1,12 +1,13 @@
-// IWYU pragma: private
-
 #ifndef __FASTPIN_ARM_GIGA_H
 #define __FASTPIN_ARM_GIGA_H
 
-#include "fl/stl/compiler_control.h"
-#include "platforms/arm/giga/armpin.h"
-namespace fl {
-#if defined(ARDUINO_GIGA) || defined(ARDUINO_GIGA_M7) || defined(STM32H7)
+#include "fl/force_inline.h"
+#include "fl/namespace.h"
+#include "armpin.h"
+
+FASTLED_NAMESPACE_BEGIN
+
+#if defined(ARDUINO_GIGA) || defined(ARDUINO_GIGA_M7)
 #define _RD32(T) struct __gen_struct_ ## T { static FASTLED_FORCE_INLINE volatile GPIO_TypeDef * r() { return T; } };
 #define _FL_IO(L,C) _RD32(GPIO ## L);
 
@@ -27,7 +28,7 @@ _FL_IO(J,9);
 _FL_IO(K,10);
 
 // Actual pin definitions
-#if defined(ARDUINO_GIGA) || defined(ARDUINO_GIGA_M7) || defined(STM32H7)
+#if defined(ARDUINO_GIGA) || defined(ARDUINO_GIGA_M7)
 #define MAX_PIN 102
 
 // PA0-PA15
@@ -201,5 +202,7 @@ _FL_DEFPIN(41, 7, K);
 #define HAS_HARDWARE_PIN_SUPPORT
 
 #endif // ARDUINO_GIGA || ARDUINO_GIGA_M7
-}  // namespace fl
+
+FASTLED_NAMESPACE_END
+
 #endif // __INC_FASTPIN_ARM_STM32

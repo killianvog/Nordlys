@@ -1,22 +1,10 @@
 # Testing
 
-  * REPO SYNC MODE: When there is a compiler error there isn't a hard failure. The compiler error needs to get propagate back to the top.
-
-
   * Esp32 testing
     * https://github.com/marketplace/actions/esp32-qemu-runner will run a sketch for X seconds and see's if it crashes
       * There's specific tests we'd like to run with this including the WS2812 and APA102 tests to test the clockless and clocked drivers
 
 # Feature Enhancements
-
-  [ ] Adafruit converter driver
-  [ ] NeoPixel converter driver
-
-  * CH32V003 RISC-V MCU Support
-    * Ultra-low-cost 10-cent RISC-V microcontroller
-    * Currently has partial support
-    * Board configuration: ci/boards/package_ch32v_index.json (CH32V00x EVT Board)
-    * Development resources: https://github.com/cnlohr/ch32fun
 
   * I2S driver for ESP32 WS2812
     * https://github.com/hpwit/I2SClocklessLedDriver
@@ -42,17 +30,8 @@
   * Arduino test compile
     * https://github.com/hpwit/arduino-test-compile/blob/master/arduino-test-compile.sh
 
-  * Ingest protocol implementations from open-source ESP32-Bit-Pirate
-    * https://github.com/geo-tp/ESP32-Bit-Pirate/wiki/12-USB (starting point: USB)
-    * Goal: harvest reference protocol logic from the project's wiki pages
-      (USB and any other protocol modules they document) for reuse / inspiration
-
 
 # Misc:
 
   * sutaburosu's guide to playing around with FastLED 4
     * https://github.com/sutaburosu/FastLED4-ESP32-playpen
-
-
-# Animartrix: try using sinf, cosf and other found trip instead of trying to go
-full double precision.

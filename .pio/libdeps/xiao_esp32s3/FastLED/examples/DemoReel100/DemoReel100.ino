@@ -1,5 +1,3 @@
-// @filter: (memory is large)
-
 /// @file    DemoReel100.ino
 /// @brief   FastLED "100 lines of code" demo reel, showing off some effects
 /// @example DemoReel100.ino
@@ -37,15 +35,6 @@ void setup() {
   FastLED.setBrightness(BRIGHTNESS);
 }
 
-// Forward declarations for pattern functions
-void rainbow();
-void rainbowWithGlitter();
-void confetti();
-void sinelon();
-void juggle();
-void bpm();
-void nextPattern();
-void addGlitter(fract8 chanceOfGlitter);
 
 // List of patterns to cycle through.  Each is defined as a separate function below.
 typedef void (*SimplePatternList[])();
@@ -133,3 +122,4 @@ void juggle() {
     dothue += 32;
   }
 }
+

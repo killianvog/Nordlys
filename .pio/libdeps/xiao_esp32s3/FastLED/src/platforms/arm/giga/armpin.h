@@ -1,14 +1,10 @@
 #pragma once
+#include <stdint.h>
 
-// IWYU pragma: private
-#include "fl/stl/stdint.h"
-#include "fl/system/fastpin_base.h"
-#include "fl/system/pin.h"  // For PinMode, PinValue enums
-#include "fl/stl/compiler_control.h"
+#include "fl/namespace.h"
 
-FL_DISABLE_WARNING_PUSH
-FL_DISABLE_WARNING_DEPRECATED_REGISTER
-namespace fl {
+FASTLED_NAMESPACE_BEGIN
+
 #define _R(T) struct __gen_struct_ ## T
 #define _FL_DEFPIN(PIN, BIT, L) template<> class FastPin<PIN> : public _ARMPIN<PIN, BIT, 1 << BIT, _R(GPIO ## L)> {};
 
@@ -17,14 +13,14 @@ namespace fl {
 /// that something about the way gcc does register allocation results in the bit-band code being slower.  It will need more fine tuning.
 /// The registers are data output, set output, clear output, toggle output, input, and direction
 
-template<u8 PIN, u8 _BIT, u32 _MASK, typename _GPIO> class _ARMPIN : public ValidPinBase {
+template<uint8_t PIN, uint8_t _BIT, uint32_t _MASK, typename _GPIO> class _ARMPIN {
 
 public:
-    typedef volatile u32 * port_ptr_t;
-    typedef u32 port_t;
+    typedef volatile uint32_t * port_ptr_t;
+    typedef uint32_t port_t;
 
-    inline static void setOutput() { pinMode(PIN, PinMode::Output); } // TODO: perform MUX config { _PDDR::r() |= _MASK; }
-    inline static void setInput() { pinMode(PIN, PinMode::Input); } // TODO: preform MUX config { _PDDR::r() &= ~_MASK; }
+    inline static void setOutput() { pinMode(PIN, OUTPUT); } // TODO: perform MUX config { _PDDR::r() |= _MASK; }
+    inline static void setInput() { pinMode(PIN, INPUT); } // TODO: preform MUX config { _PDDR::r() &= ~_MASK; }
     
     inline static void hi() __attribute__ ((always_inline)) { _GPIO::r()->BSRR = _MASK; }
     inline static void lo() __attribute__ ((always_inline)) { _GPIO::r()->BSRR = (_MASK<<16); }
@@ -48,6 +44,7 @@ public:
 
     inline static port_t mask() __attribute__ ((always_inline)) { return _MASK; }
 };
-}  // namespace fl
 
-FL_DISABLE_WARNING_POP
+
+
+FASTLED_NAMESPACE_END

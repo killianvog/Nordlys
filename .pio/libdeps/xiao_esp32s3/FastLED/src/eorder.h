@@ -2,27 +2,32 @@
 /// Defines color channel ordering enumerations
 
 #pragma once
+#include "fl/namespace.h"
 
-#include "fl/gfx/eorder.h"
+FASTLED_NAMESPACE_BEGIN
 
-// AMNESTY: fl::EOrder and fl::EOrderW are allowed in global scope via 'using'.
-// These enum class types need global visibility for backward compatibility.
-// Do not replace with a separate global plain enum — that would require
-// static_cast everywhere the two enum types interact.
-using EOrder = fl::EOrder;   // ok using
-using EOrderW = fl::EOrderW; // ok using
+/// RGB color channel orderings, used when instantiating controllers to determine
+/// what order the controller should send data out in. The default ordering
+/// is RGB.
+/// Within this enum, the red channel is 0, the green channel is 1, and the
+/// blue chanel is 2.
+enum EOrder {
+	RGB=0012,  ///< Red,   Green, Blue  (0012)
+	RBG=0021,  ///< Red,   Blue,  Green (0021)
+	GRB=0102,  ///< Green, Red,   Blue  (0102)
+	GBR=0120,  ///< Green, Blue,  Red   (0120)
+	BRG=0201,  ///< Blue,  Red,   Green (0201)
+	BGR=0210   ///< Blue,  Green, Red   (0210)
+};
 
-// Bring enum values into global scope as constexpr constants
-// (enum class values can't be imported with 'using')
-constexpr EOrder RGB = EOrder::RGB;
-constexpr EOrder RBG = EOrder::RBG;
-constexpr EOrder GRB = EOrder::GRB;
-constexpr EOrder GBR = EOrder::GBR;
-constexpr EOrder BRG = EOrder::BRG;
-constexpr EOrder BGR = EOrder::BGR;
+// After EOrder is applied this is where W is inserted for RGBW.
+enum EOrderW {
+	W3 = 0x3,  ///< White is fourth
+	W2 = 0x2,  ///< White is third
+	W1 = 0x1,  ///< White is second
+	W0 = 0x0,   ///< White is first
+	WDefault = W3
+};
 
-constexpr EOrderW W3 = EOrderW::W3;
-constexpr EOrderW W2 = EOrderW::W2;
-constexpr EOrderW W1 = EOrderW::W1;
-constexpr EOrderW W0 = EOrderW::W0;
-constexpr EOrderW WDefault = EOrderW::WDefault;
+FASTLED_NAMESPACE_END
+

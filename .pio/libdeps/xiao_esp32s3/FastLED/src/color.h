@@ -1,5 +1,9 @@
 #pragma once
 
+#include "fl/namespace.h"
+
+FASTLED_NAMESPACE_BEGIN
+
 /// @file color.h
 /// Contains definitions for color correction and temperature
 
@@ -92,4 +96,5 @@ typedef enum {
 
 /// @} ColorEnums
 
+FASTLED_NAMESPACE_END
 

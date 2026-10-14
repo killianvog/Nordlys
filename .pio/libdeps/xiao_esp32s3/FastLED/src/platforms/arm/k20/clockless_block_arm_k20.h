@@ -1,15 +1,11 @@
-// IWYU pragma: private
-
 #ifndef __INC_BLOCK_CLOCKLESS_ARM_K20_H
 #define __INC_BLOCK_CLOCKLESS_ARM_K20_H
 
-#include "fl/chipsets/timing_traits.h"
+#include "fl/namespace.h"
 
 // Definition for a single channel clockless controller for the k20 family of chips, like that used in the teensy 3.0/3.1
 // See clockless.h for detailed info on how the template parameters are used.
-#include "platforms/arm/teensy/is_teensy.h"
-
-#if defined(FL_IS_TEENSY_3X)
+#if defined(FASTLED_TEENSY3)
 #define FASTLED_HAS_BLOCKLESS 1
 
 #define PORTC_FIRST_PIN 15
@@ -18,40 +14,14 @@
 
 #define PORT_MASK (((1<<LANES)-1) & ((FIRST_PIN==2) ? 0xFF : 0xFFF))
 
-#define USED_LANES ((FIRST_PIN==2) ? fl::min(LANES,8) : fl::min(LANES,12))
+#define USED_LANES ((FIRST_PIN==2) ? MIN(LANES,8) : MIN(LANES,12))
 
-// IWYU pragma: begin_keep
 #include <kinetis.h>
-// IWYU pragma: end_keep
-#include "fl/stl/compiler_control.h"
-#include "fl/stl/static_assert.h"
-#include "fl/stl/noexcept.h"
 
-FL_DISABLE_WARNING_PUSH
-FL_DISABLE_WARNING_DEPRECATED_REGISTER
-namespace fl {
-/// @brief ARM K20 (Teensy 3.0/3.1) Block Clockless LED Controller
-/// @tparam LANES Number of parallel data lines
-/// @tparam FIRST_PIN First pin number (determines port)
-/// @tparam TIMING ChipsetTiming structure containing T1, T2, T3, and RESET values
-/// @tparam RGB_ORDER Color order (RGB, GRB, etc.)
-/// @tparam XTRA0 Additional parameter for platform-specific needs
-/// @tparam FLIP Flip the output bit order if true
-/// @tparam WAIT_TIME Wait time between updates in microseconds
-///
-/// Example usage with named timing constant:
-/// @code
-///   InlineBlockClocklessController<8, 15, TIMING_WS2812_800KHZ, GRB> controller;
-/// @endcode
-template <u8 LANES, int FIRST_PIN, typename TIMING, EOrder RGB_ORDER = GRB, int XTRA0 = 0, bool FLIP = false>
+FASTLED_NAMESPACE_BEGIN
+
+template <uint8_t LANES, int FIRST_PIN, int T1, int T2, int T3, EOrder RGB_ORDER = GRB, int XTRA0 = 0, bool FLIP = false, int WAIT_TIME = 40>
 class InlineBlockClocklessController : public CPixelLEDController<RGB_ORDER, LANES, PORT_MASK> {
-	// Extract timing values from struct at compile-time
-	enum : u32 {
-		T1 = TIMING::T1,
-		T2 = TIMING::T2,
-		T3 = TIMING::T3,
-		WAIT_TIME = TIMING::RESET
-	};
 	typedef typename FastPin<FIRST_PIN>::port_ptr_t data_ptr_t;
 	typedef typename FastPin<FIRST_PIN>::port_t data_t;
 
@@ -60,23 +30,21 @@ class InlineBlockClocklessController : public CPixelLEDController<RGB_ORDER, LAN
 	CMinWait<WAIT_TIME> mWait;
 
 public:
-	int size() const FL_NO_EXCEPT override { return CLEDController::size() * LANES; }
+	virtual int size() { return CLEDController::size() * LANES; }
 
-	virtual void showPixels(PixelController<RGB_ORDER, LANES, PORT_MASK> & pixels) FL_NO_EXCEPT {
+	virtual void showPixels(PixelController<RGB_ORDER, LANES, PORT_MASK> & pixels) { 
 		mWait.wait();
-		u32 clocks = showRGBInternal(pixels);
+		uint32_t clocks = showRGBInternal(pixels);
 		#if FASTLED_ALLOW_INTERRUPTS == 0
 		// Adjust the timer
 		long microsTaken = CLKS_TO_MICROS(clocks);
 		MS_COUNTER += (1 + (microsTaken / 1000));
 		#endif
-		// Only read when interrupts are disabled; keep the call, drop the warning.
-		FASTLED_UNUSED(clocks);
 
 		mWait.mark();
 	}
 
-	virtual void init() FL_NO_EXCEPT {
+	virtual void init() {
 		if(FIRST_PIN == PORTC_FIRST_PIN) { // PORTC
 			switch(USED_LANES) {
 				case 12: FastPin<30>::setOutput();
@@ -108,16 +76,15 @@ public:
 		mPort = FastPin<FIRST_PIN>::port();
 	}
 
-	virtual u16 getMaxRefreshRate() const { return 400; }
+	virtual uint16_t getMaxRefreshRate() const { return 400; }
 
 	typedef union {
-		u8 bytes[16];
-		u16 shorts[8];
-		u32 raw[4];
+		uint8_t bytes[12];
+		uint16_t shorts[6];
+		uint32_t raw[3];
 	} Lines;
-	FL_STATIC_ASSERT(sizeof(Lines) >= 8 * sizeof(u16), "Lines must hold eight 16-bit output masks");
 
-	template<int BITS,int PX> __attribute__ ((always_inline)) inline static void writeBits(FASTLED_REGISTER u32 & next_mark, FASTLED_REGISTER Lines & b, PixelController<RGB_ORDER, LANES, PORT_MASK> &pixels) FL_NO_EXCEPT { // , FASTLED_REGISTER uint32_t & b2)  {
+	template<int BITS,int PX> __attribute__ ((always_inline)) inline static void writeBits(FASTLED_REGISTER uint32_t & next_mark, FASTLED_REGISTER Lines & b, PixelController<RGB_ORDER, LANES, PORT_MASK> &pixels) { // , FASTLED_REGISTER uint32_t & b2)  {
 		FASTLED_REGISTER Lines b2;
 		if(USED_LANES>8) {
 			transpose8<1,2>(b.bytes,b2.bytes);
@@ -125,10 +92,10 @@ public:
 		} else {
 			transpose8x1(b.bytes,b2.bytes);
 		}
-		FASTLED_REGISTER u8 d = pixels.template getd<PX>(pixels);
-		FASTLED_REGISTER u8 scale = pixels.template getscale<PX>(pixels);
+		FASTLED_REGISTER uint8_t d = pixels.template getd<PX>(pixels);
+		FASTLED_REGISTER uint8_t scale = pixels.template getscale<PX>(pixels);
 
-		for(FASTLED_REGISTER u32 i = 0; i < (USED_LANES/2); ++i) {
+		for(FASTLED_REGISTER uint32_t i = 0; i < (USED_LANES/2); ++i) {
 			while(ARM_DWT_CYCCNT < next_mark);
 			next_mark = ARM_DWT_CYCCNT + (T1+T2+T3)-3;
 			*FastPin<FIRST_PIN>::sport() = PORT_MASK;
@@ -152,7 +119,7 @@ public:
 			b.bytes[USED_LANES-1] = pixels.template loadAndScale<PX>(pixels,USED_LANES-1,d,scale);
 		}
 
-		for(FASTLED_REGISTER u32 i = USED_LANES/2; i < 8; ++i) {
+		for(FASTLED_REGISTER uint32_t i = USED_LANES/2; i < 8; ++i) {
 			while(ARM_DWT_CYCCNT < next_mark);
 			next_mark = ARM_DWT_CYCCNT + (T1+T2+T3)-3;
 			*FastPin<FIRST_PIN>::sport() = PORT_MASK;
@@ -174,7 +141,7 @@ public:
 
 	// This method is made static to force making register Y available to use for data on AVR - if the method is non-static, then
 	// gcc will use register Y for the this pointer.
-		static u32 showRGBInternal(PixelController<RGB_ORDER, LANES, PORT_MASK> &allpixels) FL_NO_EXCEPT {
+		static uint32_t showRGBInternal(PixelController<RGB_ORDER, LANES, PORT_MASK> &allpixels) {
 		// Get access to the clock
 		ARM_DEMCR    |= ARM_DEMCR_TRCENA;
 		ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
@@ -190,7 +157,7 @@ public:
 		}
 
 		cli();
-		u32 next_mark = ARM_DWT_CYCCNT + (T1+T2+T3);
+		uint32_t next_mark = ARM_DWT_CYCCNT + (T1+T2+T3);
 
 		while(allpixels.has(1)) {
 			#if (FASTLED_ALLOW_INTERRUPTS == 1)
@@ -224,7 +191,7 @@ public:
 #define PMASK_HI (PMASK>>8 & 0xFF)
 #define PMASK_LO (PMASK & 0xFF)
 
-template <u8 LANES, int T1, int T2, int T3, EOrder RGB_ORDER = GRB, int XTRA0 = 0, bool FLIP = false, int WAIT_TIME = 280>
+template <uint8_t LANES, int T1, int T2, int T3, EOrder RGB_ORDER = GRB, int XTRA0 = 0, bool FLIP = false, int WAIT_TIME = 50>
 class SixteenWayInlineBlockClocklessController : public CPixelLEDController<RGB_ORDER, LANES, PMASK> {
 	typedef typename FastPin<PORTC_FIRST_PIN>::port_ptr_t data_ptr_t;
 	typedef typename FastPin<PORTC_FIRST_PIN>::port_t data_t;
@@ -234,8 +201,8 @@ class SixteenWayInlineBlockClocklessController : public CPixelLEDController<RGB_
 	CMinWait<WAIT_TIME> mWait;
 
 public:
-	virtual void init() FL_NO_EXCEPT {
-		FL_STATIC_ASSERT(LANES <= 16, "Maximum of 16 lanes for Teensy parallel controllers!");
+	virtual void init() {
+		static_assert(LANES <= 16, "Maximum of 16 lanes for Teensy parallel controllers!");
 		// FastPin<30>::setOutput();
 		// FastPin<29>::setOutput();
 		// FastPin<27>::setOutput();
@@ -261,34 +228,32 @@ public:
 		}
 	}
 
-	virtual void showPixels(PixelController<RGB_ORDER, LANES, PMASK> & pixels) FL_NO_EXCEPT {
+	virtual void showPixels(PixelController<RGB_ORDER, LANES, PMASK> & pixels) { 
 		mWait.wait();
-		u32 clocks = showRGBInternal(pixels);
+		uint32_t clocks = showRGBInternal(pixels);
 		#if FASTLED_ALLOW_INTERRUPTS == 0
 		// Adjust the timer
 		long microsTaken = CLKS_TO_MICROS(clocks);
 		MS_COUNTER += (1 + (microsTaken / 1000));
 		#endif
-		// Only read when interrupts are disabled; keep the call, drop the warning.
-		FASTLED_UNUSED(clocks);
 
 		mWait.mark();
 	}
 
 	typedef union {
-		u8 bytes[16];
-		u16 shorts[8];
-		u32 raw[4];
+		uint8_t bytes[16];
+		uint16_t shorts[8];
+		uint32_t raw[4];
 	} Lines;
 
-	template<int BITS,int PX> __attribute__ ((always_inline)) inline static void writeBits(FASTLED_REGISTER u32 & next_mark, FASTLED_REGISTER Lines & b, PixelController<RGB_ORDER,LANES, PMASK> &pixels) FL_NO_EXCEPT { // , FASTLED_REGISTER uint32_t & b2)  {
+	template<int BITS,int PX> __attribute__ ((always_inline)) inline static void writeBits(FASTLED_REGISTER uint32_t & next_mark, FASTLED_REGISTER Lines & b, PixelController<RGB_ORDER,LANES, PMASK> &pixels) { // , FASTLED_REGISTER uint32_t & b2)  {
 		FASTLED_REGISTER Lines b2;
 		transpose8x1(b.bytes,b2.bytes);
 		transpose8x1(b.bytes+8,b2.bytes+8);
-		FASTLED_REGISTER u8 d = pixels.template getd<PX>(pixels);
-		FASTLED_REGISTER u8 scale = pixels.template getscale<PX>(pixels);
+		FASTLED_REGISTER uint8_t d = pixels.template getd<PX>(pixels);
+		FASTLED_REGISTER uint8_t scale = pixels.template getscale<PX>(pixels);
 
-		for(FASTLED_REGISTER u32 i = 0; (i < LANES) && (i < 8); ++i) {
+		for(FASTLED_REGISTER uint32_t i = 0; (i < LANES) && (i < 8); ++i) {
 			while(ARM_DWT_CYCCNT < next_mark);
 			next_mark = ARM_DWT_CYCCNT + (T1+T2+T3)-3;
 			*FastPin<PORTD_FIRST_PIN>::sport() = PMASK_LO;
@@ -313,7 +278,7 @@ public:
 
 	// This method is made static to force making register Y available to use for data on AVR - if the method is non-static, then
 	// gcc will use register Y for the this pointer.
-		static u32 showRGBInternal(PixelController<RGB_ORDER,LANES, PMASK> &allpixels) FL_NO_EXCEPT {
+		static uint32_t showRGBInternal(PixelController<RGB_ORDER,LANES, PMASK> &allpixels) {
 		// Get access to the clock
 		ARM_DEMCR    |= ARM_DEMCR_TRCENA;
 		ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
@@ -329,7 +294,7 @@ public:
 		}
 
 		cli();
-		u32 next_mark = ARM_DWT_CYCCNT + (T1+T2+T3);
+		uint32_t next_mark = ARM_DWT_CYCCNT + (T1+T2+T3);
 
 		while(allpixels.has(1)) {
 			allpixels.stepDithering();
@@ -360,10 +325,9 @@ public:
 		return ARM_DWT_CYCCNT;
 	}
 };
-}  // namespace fl
+
+FASTLED_NAMESPACE_END
+
 #endif
-
-
-FL_DISABLE_WARNING_POP
 
 #endif
