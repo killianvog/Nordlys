@@ -20,10 +20,10 @@
 #define DATA_PIN        D5
 
 // ================= STRIP =================
-#define NUM_LEDS        72
+#define NUM_LEDS        32
 #define LED_TYPE        WS2812B
 #define COLOR_ORDER     GRB
-#define MAX_MILLIAMPS   2500     // keep ~2500 on a 3 A charger; use ~500 when powered from a laptop
+#define MAX_MILLIAMPS   500     // keep ~2500 on a 3 A charger; use ~500 when powered from a laptop
 
 // ================= CONTROL SETTINGS =================
 const bool  INVERT_BRIGHT_POT = false;  // set true if turning clockwise dims the lamp
